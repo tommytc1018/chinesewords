@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>香港小學學習字詞表 — 繁體中文筆順與寫字練習系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- HanziWriter with Dual-CDN Fallback -->
+  <!-- HanziWriter 3.5 with Dual-CDN Fallback -->
   <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/hanzi-writer@3.5/dist/hanzi-writer.min.js';"></script>
-  <!-- html2canvas & jsPDF for Deep-Debugged WYSIWYG Single-Page A4 PDF Export -->
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js';"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js';"></script>
+  <!-- html2canvas & jsPDF with Dual-CDN Fallback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet" />
@@ -19,17 +19,18 @@
       --ink-dark: #1c1917;
       --accent-vermilion: #c83e37;
       --accent-jade: #2b6e5c;
+      --kai-font: "DFKai-SB", "BiauKai", "標楷體", "Kaiti TC", "STKaiti", "KaiTi", "Noto Serif TC", serif;
     }
 
     body {
-      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "PingFang HK", "Microsoft JhengHei", sans-serif;
       background-color: var(--bg-paper);
       color: var(--ink-dark);
       overflow-x: hidden;
     }
 
     .font-kai {
-      font-family: "DFKai-SB", "BiauKai", "標楷體", "Kaiti TC", "STKaiti", "Noto Serif TC", serif;
+      font-family: var(--kai-font);
     }
 
     /* Touch-safe interactive drawing surface */
@@ -77,12 +78,12 @@
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* Strict Single-Page A4 Portrait Sheet (794px x 1123px @ 96DPI / 210mm x 296.5mm) */
+    /* Strict Single-Page A4 Portrait Sheet (794px x 1122px @ 96DPI / 210mm x 297mm) */
     .a4-sheet {
       width: 794px;
-      height: 1123px;
+      height: 1122px;
       max-width: 794px;
-      max-height: 1123px;
+      max-height: 1122px;
       box-sizing: border-box;
       overflow: hidden;
       background: #ffffff;
@@ -191,7 +192,7 @@
         </div>
       </div>
 
-      <!-- Quick-Select Character/Word Pills Bar -->
+      <!-- Quick-Select Character/Word Pills Bar (21 items) -->
       <div class="mt-3 pt-2.5 border-t border-stone-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
         <span class="text-xs font-bold text-stone-500 shrink-0">精選字詞：</span>
         <div id="quick-pills-container" class="flex items-center gap-1.5"></div>
@@ -199,7 +200,7 @@
     </div>
   </header>
 
-  <!-- Multi-Character Switcher Bar (Appears when multiple characters are entered) -->
+  <!-- Multi-Character Switcher Bar (Appears when multiple characters are entered, e.g. 張晴濬) -->
   <div id="multi-char-bar" class="hidden bg-amber-50 border-b border-amber-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2 flex-wrap">
@@ -270,7 +271,7 @@
 
           <!-- Feedback Status Bar -->
           <div id="quiz-feedback-bar" class="mt-3 w-full text-center text-xs font-semibold py-2 px-3 rounded-xl bg-stone-100 text-stone-700">
-            點擊「筆順演示」觀看動態寫法，或點擊「寫字練習」在格內書寫
+            點擊「筆順演示」觀看動態寫法，或點擊「寫字練習測驗」在格內書寫
           </div>
         </div>
 
@@ -311,7 +312,7 @@
             id="btn-quiz-toggle"
             class="py-2.5 px-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white font-bold text-xs flex flex-col items-center justify-center gap-0.5 shadow-xs transition cursor-pointer"
           >
-            <span>✍️</span><span id="quiz-btn-text">寫字練習</span>
+            <span>✍️</span><span id="quiz-btn-text">寫字練習測驗</span>
           </button>
         </div>
 
@@ -325,7 +326,7 @@
           </button>
         </div>
 
-        <!-- Visual-Only Stroke-Order Arrow Diagram -->
+        <!-- Visual-Only Stroke-Order Arrow Diagram & Step Strip -->
         <div class="pt-3 border-t border-stone-100">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-bold text-stone-700">視覺筆順箭頭圖解（紅點起筆序號・藍虛線運筆方向）</span>
@@ -458,7 +459,7 @@
     <!-- Modal Top Controls -->
     <div class="bg-white border-b border-stone-200 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-sm">
       <div class="flex items-center gap-2.5 flex-wrap">
-        <span class="px-2.5 py-1 rounded-lg bg-red-50 text-[#c83e37] font-extrabold text-xs border border-red-200">單頁 A4 精準排版 (One Page)</span>
+        <span class="px-2.5 py-1 rounded-lg bg-red-50 text-[#c83e37] font-extrabold text-xs border border-red-200">單頁 A4 精準排版 (210mm × 297mm)</span>
         <div class="inline-flex rounded-xl bg-stone-100 p-1">
           <button id="modal-switch-ws1" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-900 shadow-xs transition cursor-pointer">
             1. 標準教學工作紙 (24格)
@@ -489,7 +490,7 @@
           id="btn-standalone-print-win"
           class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
         >
-          <span>🪟</span><span>開啟獨立列印視窗</span>
+          <span>🪟</span><span>獨立視窗列印</span>
         </button>
         <button
           id="btn-direct-window-print"
@@ -517,295 +518,295 @@
   <script>
     /**
      * ============================================================================
-     * 1. BUILT-IN HONG KONG PRIMARY CHARACTER DICTIONARY (48+ Characters, Ages 4-12)
+     * 1. BUILT-IN 48-CHARACTER HONG KONG PRIMARY LEXICAL DICTIONARY (AGES 4-12)
      * ============================================================================
      */
     const LOCAL_DICT = {
       "張": {
         radical: "弓", strokes: 11, jyutping: "zoeng1", pinyin: "zhāng",
-        english: "to open; to spread; sheet; surname Cheung",
+        meaning: "to open; to spread; sheet; surname Cheung",
         sentence: "張老師派給每位同學一張白紙畫圖畫。",
         words: ["張開", "紙張", "張貼", "緊張", "誇張", "張望", "主張", "擴張", "張燈結彩", "東張西望"]
       },
       "晴": {
         radical: "日", strokes: 12, jyutping: "cing4", pinyin: "qíng",
-        english: "clear sky; fine weather; sunny",
+        meaning: "clear sky; fine weather; sunny",
         sentence: "今天天朗氣清，陽光燦爛，是個大晴天。",
         words: ["晴天", "晴朗", "放晴", "雨過天晴", "晴空萬里", "晴雨表", "轉晴", "晴和", "天晴", "風和日晴"]
       },
       "濬": {
         radical: "水", strokes: 17, jyutping: "zeon3", pinyin: "jùn",
-        english: "to dredge; deep; wise; enlightened",
+        meaning: "to dredge; deep; wise; enlightened",
         sentence: "工程人員定期疏濬河道，保持水流暢通。",
         words: ["疏濬", "濬哲", "濬導", "濬源", "深濬", "濬發", "濬明", "濬川", "開濬", "濬治"]
       },
       "學": {
         radical: "子", strokes: 16, jyutping: "hok6", pinyin: "xué",
-        english: "to learn; to study; school; science",
+        meaning: "to learn; to study; school; science",
         sentence: "我每天開開心心地背起書包上學去。",
         words: ["學習", "學校", "學生", "同學", "小學", "放學", "上學", "科學", "學問", "勤奮好學"]
       },
       "校": {
         radical: "木", strokes: 10, jyutping: "haau6", pinyin: "xiào",
-        english: "school; campus; to proofread",
+        meaning: "school; campus; to proofread",
         sentence: "我們的校園裡種滿了美麗的花草樹木。",
         words: ["學校", "校園", "校長", "校服", "校車", "校規", "母校", "校對", "校舍", "全校師生"]
       },
       "愛": {
         radical: "心", strokes: 13, jyutping: "oi3", pinyin: "ài",
-        english: "to love; affection; to cherish",
+        meaning: "to love; affection; to cherish",
         sentence: "爸爸媽媽非常疼愛我，我也愛我的家人。",
         words: ["愛心", "可愛", "友愛", "愛護", "親愛", "關愛", "熱愛", "仁愛", "愛惜", "相親相愛"]
       },
       "家": {
         radical: "宀", strokes: 10, jyutping: "gaa1", pinyin: "jiā",
-        english: "home; family; household; specialist",
+        meaning: "home; family; household; specialist",
         sentence: "放學回家後，我會先洗手再溫習功課。",
         words: ["家庭", "家人", "回家", "大家", "國家", "家鄉", "畫家", "作家", "家務", "溫暖的家"]
       },
       "天": {
         radical: "大", strokes: 4, jyutping: "tin1", pinyin: "tiān",
-        english: "sky; heaven; day; weather",
+        meaning: "sky; heaven; day; weather",
         sentence: "藍藍的天空上飄著幾朵雪白的雲。",
         words: ["天空", "今天", "明天", "昨天", "天氣", "春天", "夏天", "秋天", "冬天", "天真可愛"]
       },
       "地": {
         radical: "土", strokes: 6, jyutping: "dei6", pinyin: "dì",
-        english: "earth; ground; land; place",
+        meaning: "earth; ground; land; place",
         sentence: "春雨過後，草地上長出了嫩綠的小草。",
         words: ["地方", "土地", "草地", "地球", "地圖", "地下", "地板", "田地", "天地", "腳踏實地"]
       },
       "人": {
         radical: "人", strokes: 2, jyutping: "jan4", pinyin: "rén",
-        english: "person; people; human being",
+        meaning: "person; people; human being",
         sentence: "我們要學會做一個有禮貌、樂於助人的好孩子。",
         words: ["人們", "好人", "大人", "家人", "病人", "工人", "商人", "主人", "助人", "人人有責"]
       },
       "山": {
         radical: "山", strokes: 3, jyutping: "saan1", pinyin: "shān",
-        english: "mountain; hill; peak",
+        meaning: "mountain; hill; peak",
         sentence: "星期天，爸爸帶我去太平山頂欣賞風景。",
         words: ["高山", "山頂", "山坡", "山水", "爬山", "山谷", "火山", "山洞", "山林", "山明水秀"]
       },
       "水": {
         radical: "水", strokes: 4, jyutping: "seoi2", pinyin: "shuǐ",
-        english: "water; river; liquid",
+        meaning: "water; river; liquid",
         sentence: "多喝清水和多吃水果對身體很有益處。",
         words: ["清水", "水果", "河水", "海水", "雨水", "喝水", "水杯", "汽水", "山明水秀", "飲水思源"]
       },
       "風": {
         radical: "風", strokes: 9, jyutping: "fung1", pinyin: "fēng",
-        english: "wind; breeze; style; custom",
+        meaning: "wind; breeze; style; custom",
         sentence: "秋天來了，涼爽的秋風輕輕吹過樹梢。",
         words: ["微風", "大風", "風箏", "風景", "秋風", "春風", "風雨", "風鈴", "和風", "風和日麗"]
       },
       "雨": {
         radical: "雨", strokes: 8, jyutping: "jyu5", pinyin: "yǔ",
-        english: "rain; rainy",
+        meaning: "rain; rainy",
         sentence: "下雨天出門時，記得要帶雨傘和穿雨衣。",
         words: ["下雨", "雨水", "雨傘", "雨衣", "大雨", "小雨", "雷雨", "風雨", "雨滴", "春風化雨"]
       },
       "花": {
         radical: "艸", strokes: 8, jyutping: "faa1", pinyin: "huā",
-        english: "flower; blossom; pattern",
+        meaning: "flower; blossom; pattern",
         sentence: "春天到了，公園裡的鮮花都開得十分燦爛。",
         words: ["花朵", "鮮花", "花園", "開花", "花草", "紅花", "花瓶", "棉花", "雪花", "鳥語花香"]
       },
       "草": {
         radical: "艸", strokes: 10, jyutping: "cou2", pinyin: "cǎo",
-        english: "grass; straw; herb",
+        meaning: "grass; straw; herb",
         sentence: "小兔子在綠油油的草地上開心地跳來跳去。",
         words: ["小草", "草地", "青草", "花草", "草原", "稻草", "草帽", "水草", "雜草", "綠草如茵"]
       },
       "書": {
         radical: "曰", strokes: 10, jyutping: "syu1", pinyin: "shū",
-        english: "book; letter; to write",
+        meaning: "book; letter; to write",
         sentence: "我喜歡在圖書館裡安靜地閱讀故事書。",
         words: ["書本", "書包", "看書", "讀書", "圖書館", "故事書", "書桌", "書法", "教科書", "博覽群書"]
       },
       "畫": {
         radical: "田", strokes: 12, jyutping: "waa6", pinyin: "huà",
-        english: "to draw; to paint; painting; picture",
+        meaning: "to draw; to paint; painting; picture",
         sentence: "妹妹用彩色筆畫了一幅美麗的風景畫。",
         words: ["圖畫", "畫畫", "畫家", "畫筆", "壁畫", "漫畫", "動畫", "水彩畫", "詩情畫意", "畫龍點睛"]
       },
       "快": {
         radical: "心", strokes: 7, jyutping: "faai3", pinyin: "kuài",
-        english: "happy; fast; quick; soon",
+        meaning: "happy; fast; quick; soon",
         sentence: "祝你生日快樂，每天都健康快樂地成長！",
         words: ["快樂", "快速", "快車", "趕快", "愉快", "歡快", "快慢", "痛快", "飛快", "拍手稱快"]
       },
       "樂": {
         radical: "木", strokes: 15, jyutping: "lok6", pinyin: "lè",
-        english: "happy; joyful; music (ngok6)",
+        meaning: "happy; joyful; music (ngok6)",
         sentence: "和好朋友一起玩遊戲是一件很快樂的事。",
         words: ["快樂", "歡樂", "樂園", "樂趣", "樂意", "樂觀", "音樂", "樂器", "助人為樂", "安居樂業"]
       },
       "朋": {
         radical: "月", strokes: 8, jyutping: "pang4", pinyin: "péng",
-        english: "friend; companion",
+        meaning: "friend; companion",
         sentence: "小明是我在學校裡最要好的朋友。",
         words: ["朋友", "小朋友", "好朋友", "親朋", "良朋", "賓朋", "朋輩", "高朋滿座", "親朋好友", "良師益友"]
       },
       "友": {
         radical: "又", strokes: 4, jyutping: "jau5", pinyin: "yǒu",
-        english: "friend; friendly; companionship",
+        meaning: "friend; friendly; companionship",
         sentence: "同學之間應該互相幫助，建立深厚的友誼。",
         words: ["朋友", "友愛", "友好", "友善", "友誼", "校友", "隊友", "網友", "友情", "親密無間"]
       },
       "春": {
         radical: "日", strokes: 9, jyutping: "ceon1", pinyin: "chūn",
-        english: "spring season; youthful",
+        meaning: "spring season; youthful",
         sentence: "春天萬物復甦，小鳥在樹枝上快樂地唱歌。",
         words: ["春天", "春季", "春風", "春雨", "春節", "新春", "青春", "春聯", "春暖花開", "春光明媚"]
       },
       "夏": {
         radical: "夂", strokes: 10, jyutping: "haa6", pinyin: "xià",
-        english: "summer season",
+        meaning: "summer season",
         sentence: "夏天炎熱的時候，我最喜歡去海灘游泳。",
         words: ["夏天", "夏季", "夏日", "盛夏", "初夏", "立夏", "夏令營", "夏裝", "春夏秋冬", "炎炎夏日"]
       },
       "秋": {
         radical: "禾", strokes: 9, jyutping: "cau1", pinyin: "qiū",
-        english: "autumn; fall; harvest time",
+        meaning: "autumn; fall; harvest time",
         sentence: "秋天是郊遊和放風箏的好季節。",
         words: ["秋天", "秋季", "秋風", "中秋節", "秋千", "秋色", "金秋", "初秋", "秋高氣爽", "一葉知秋"]
       },
       "冬": {
         radical: "冫", strokes: 5, jyutping: "dung1", pinyin: "dōng",
-        english: "winter season",
+        meaning: "winter season",
         sentence: "冬天到了，我們要穿上厚厚的羽絨外套保暖。",
         words: ["冬天", "冬季", "冬日", "寒冬", "冬至", "立冬", "過冬", "冬眠", "冬瓜", "寒冬臘月"]
       },
       "日": {
         radical: "日", strokes: 4, jyutping: "jat6", pinyin: "rì",
-        english: "sun; day; date",
+        meaning: "sun; day; date",
         sentence: "清晨時分，紅紅的太陽從東方慢慢升起。",
         words: ["日子", "生日", "節日", "日記", "今日", "明日", "平日", "日出", "日落", "風和日麗"]
       },
       "月": {
         radical: "月", strokes: 4, jyutping: "jyut6", pinyin: "yuè",
-        english: "moon; month",
+        meaning: "moon; month",
         sentence: "中秋節的晚上，月亮又大又圓，像一個銀盤。",
         words: ["月亮", "月光", "月份", "一月", "八月", "月餅", "歲月", "新月", "滿月", "花好月圓"]
       },
       "星": {
         radical: "日", strokes: 9, jyutping: "sing1", pinyin: "xīng",
-        english: "star; planet; week",
+        meaning: "star; planet; week",
         sentence: "晴朗的夜晚，天空中有許多閃閃發光的星星。",
         words: ["星星", "星期", "星空", "火星", "衛星", "行星", "流星", "明星", "星光", "眾星拱月"]
       },
       "雲": {
         radical: "雨", strokes: 12, jyutping: "wan4", pinyin: "yún",
-        english: "cloud",
+        meaning: "cloud",
         sentence: "天上的白雲有的像綿羊，有的像棉花糖。",
         words: ["白雲", "雲朵", "烏雲", "雲彩", "風雲", "煙雲", "雲層", "騰雲駕霧", "晴空無雲", "行雲流水"]
       },
       "鳥": {
         radical: "鳥", strokes: 11, jyutping: "niu5", pinyin: "niǎo",
-        english: "bird",
+        meaning: "bird",
         sentence: "清晨，樹林裡傳來小鳥清脆悅耳的叫聲。",
         words: ["小鳥", "飛鳥", "鳥兒", "鳥巢", "水鳥", "候鳥", "孔雀", "百鳥爭鳴", "鳥語花香", "小鳥依人"]
       },
       "魚": {
         radical: "魚", strokes: 11, jyutping: "jyu4", pinyin: "yú",
-        english: "fish",
+        meaning: "fish",
         sentence: "清澈的池塘裡有幾條紅色的小金魚在游水。",
         words: ["金魚", "小魚", "魚兒", "釣魚", "魚塘", "鯊魚", "鯨魚", "魚鱗", "如魚得水", "年年有餘"]
       },
       "手": {
         radical: "手", strokes: 4, jyutping: "sau2", pinyin: "shǒu",
-        english: "hand; skill",
+        meaning: "hand; skill",
         sentence: "飯前便後要用肥皂把雙手洗乾淨。",
         words: ["雙手", "洗手", "手指", "手心", "手帕", "手工", "拍手", "幫手", "手足情深", "心靈手巧"]
       },
       "足": {
         radical: "足", strokes: 7, jyutping: "zuk1", pinyin: "zú",
-        english: "foot; leg; sufficient",
+        meaning: "foot; leg; sufficient",
         sentence: "同學們在操場上開心地踢足球。",
         words: ["足球", "手足", "充足", "滿足", "遠足", "十足", "立足", "知足", "微不足道", "豐衣足食"]
       },
       "耳": {
         radical: "耳", strokes: 6, jyutping: "ji5", pinyin: "ěr",
-        english: "ear",
+        meaning: "ear",
         sentence: "小兔子的耳朵長長的，聽覺非常靈敏。",
         words: ["耳朵", "耳機", "木耳", "順風耳", "耳目", "耳環", "交頭接耳", "耳聰目明", "掩耳盜鈴", "言猶在耳"]
       },
       "目": {
         radical: "目", strokes: 5, jyutping: "muk6", pinyin: "mù",
-        english: "eye; item; catalog",
+        meaning: "eye; item; catalog",
         sentence: "閱讀時保持適當距離，才能好好保護雙目。",
         words: ["目光", "目標", "題目", "目錄", "節目", "科目", "雙目", "面目", "耳聰目明", "一目了然"]
       },
       "口": {
         radical: "口", strokes: 3, jyutping: "hau2", pinyin: "kǒu",
-        english: "mouth; opening; entrance",
+        meaning: "mouth; opening; entrance",
         sentence: "我們要早晚刷牙，保持口腔清潔健康。",
         words: ["門口", "入口", "出口", "口罩", "口味", "口渴", "人口", "可口", "異口同聲", "心直口快"]
       },
       "心": {
         radical: "心", strokes: 4, jyutping: "sam1", pinyin: "xīn",
-        english: "heart; mind; center",
+        meaning: "heart; mind; center",
         sentence: "做功課時要專心一致，不能三心兩意。",
         words: ["開心", "愛心", "專心", "細心", "小心", "關心", "信心", "點心", "一心一意", "得心應手"]
       },
       "大": {
         radical: "大", strokes: 3, jyutping: "daai6", pinyin: "dà",
-        english: "big; large; great; adult",
+        meaning: "big; large; great; adult",
         sentence: "大象的身體非常龐大，鼻子長長的。",
         words: ["大家", "大人", "大小", "大象", "大海", "大山", "大雨", "長大", "光明正大", "大公無私"]
       },
       "小": {
         radical: "小", strokes: 3, jyutping: "siu2", pinyin: "xiǎo",
-        english: "small; little; young",
+        meaning: "small; little; young",
         sentence: "過馬路時要小心觀察左右兩旁的車輛。",
         words: ["小學", "小朋友", "小心", "小鳥", "小草", "小狗", "小貓", "大小", "從小到大", "小巧玲瓏"]
       },
       "多": {
         radical: "夕", strokes: 6, jyutping: "do1", pinyin: "duō",
-        english: "many; much; more",
+        meaning: "many; much; more",
         sentence: "圖書館裡的藏書種類繁多，應有盡有。",
         words: ["多少", "很多", "許多", "眾多", "多謝", "多餘", "多年", "多才多藝", "多姿多彩", "多多益善"]
       },
       "少": {
         radical: "小", strokes: 4, jyutping: "siu2", pinyin: "shǎo",
-        english: "few; little; young (siu3)",
+        meaning: "few; little; young (siu3)",
         sentence: "少吃油炸食物，多吃蔬菜水果更健康。",
         words: ["多少", "很少", "少年", "少女", "減少", "缺少", "少數", "老少", "積少成多", "少見多怪"]
       },
       "上": {
         radical: "一", strokes: 3, jyutping: "soeng6", pinyin: "shàng",
-        english: "up; above; on; to go to",
+        meaning: "up; above; on; to go to",
         sentence: "每天早上七點半，我準時到達學校上課。",
         words: ["上學", "上課", "早上", "上午", "上面", "山上", "向上", "馬上", "蒸蒸日上", "錦上添花"]
       },
       "下": {
         radical: "一", strokes: 3, jyutping: "haa6", pinyin: "xià",
-        english: "down; below; under; next",
+        meaning: "down; below; under; next",
         sentence: "下午放學後，我和同學一起在操場打球。",
         words: ["下午", "下雨", "下面", "地下", "下課", "樹下", "樓下", "向下", "名聞天下", "不相上下"]
       },
       "中": {
         radical: "丨", strokes: 4, jyutping: "zung1", pinyin: "zhōng",
-        english: "middle; center; China",
+        meaning: "middle; center; China",
         sentence: "中午時分，我們在學校飯堂享用美味的午餐。",
         words: ["中國", "中文", "中午", "中間", "中心", "中學", "空中", "心中", "雪中送炭", "百發百中"]
       },
       "國": {
         radical: "囗", strokes: 11, jyutping: "gwok3", pinyin: "guó",
-        english: "country; nation; state",
+        meaning: "country; nation; state",
         sentence: "我們要熱愛祖國，努力學習將來貢獻社會。",
         words: ["中國", "國家", "國旗", "國歌", "國慶", "祖國", "外國", "國際", "國泰民安", "保家衛國"]
       },
       "港": {
         radical: "水", strokes: 12, jyutping: "gong2", pinyin: "gǎng",
-        english: "harbor; port; Hong Kong",
+        meaning: "harbor; port; Hong Kong",
         sentence: "香港的維多利亞港夜景舉世聞名，十分璀璨。",
         words: ["香港", "港口", "海港", "港灣", "漁港", "維多利亞港", "港幣", "港澳", "港島", "港鐵"]
       },
       "香": {
         radical: "香", strokes: 9, jyutping: "hoeng1", pinyin: "xiāng",
-        english: "fragrant; sweet-smelling; Hong Kong",
+        meaning: "fragrant; sweet-smelling; Hong Kong",
         sentence: "媽媽煮的飯菜香氣撲鼻，讓我胃口大開。",
         words: ["香港", "香氣", "香水", "花香", "清香", "香甜", "香濃", "香味", "鳥語花香", "古色古香"]
       }
@@ -818,15 +819,11 @@
 
     /**
      * ============================================================================
-     * 2. ROOT-CAUSE FIX: MATHEMATICAL Y-DOWN SVG PATH NORMALIZER (NO NEGATIVE SCALE!)
-     *    Transforms Makemeahanzi Y-up coordinates (x, y) -> (x, 900 - y) directly
-     *    into standard positive top-down SVG coordinates so html2canvas & print
-     *    never flip strokes upside-down.
+     * 2. MATHEMATICAL Y-DOWN SVG PATH NORMALIZER (ZERO FLIPPED STROKES)
      * ============================================================================
      */
     function flipSvgPathY(d, heightOffset = 900) {
       if (!d || typeof d !== "string") return "";
-      // Tokenize SVG path commands and numeric arguments
       const tokens = d.match(/[a-zA-Z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g);
       if (!tokens) return d;
 
@@ -840,7 +837,11 @@
           cmd = token;
           out.push(cmd);
           i++;
-          continue;
+          if (cmd === "Z" || cmd === "z") continue;
+        } else if (cmd === "M") {
+          cmd = "L";
+        } else if (cmd === "m") {
+          cmd = "l";
         }
 
         const upper = cmd.toUpperCase();
@@ -850,7 +851,7 @@
           const x = parseFloat(tokens[i]);
           const y = parseFloat(tokens[i + 1]);
           const ny = isRel ? -y : (heightOffset - y);
-          out.push(`${x} ${Math.round(ny * 100) / 100}`);
+          out.push(`${x.toFixed(1)} ${ny.toFixed(1)}`);
           i += 2;
         } else if (upper === "H") {
           out.push(tokens[i]);
@@ -858,7 +859,7 @@
         } else if (upper === "V") {
           const y = parseFloat(tokens[i]);
           const ny = isRel ? -y : (heightOffset - y);
-          out.push(`${Math.round(ny * 100) / 100}`);
+          out.push(`${ny.toFixed(1)}`);
           i += 1;
         } else if (upper === "Q" || upper === "S") {
           const x1 = parseFloat(tokens[i]);
@@ -867,7 +868,7 @@
           const y = parseFloat(tokens[i + 3]);
           const ny1 = isRel ? -y1 : (heightOffset - y1);
           const ny = isRel ? -y : (heightOffset - y);
-          out.push(`${x1} ${Math.round(ny1 * 100) / 100} ${x} ${Math.round(ny * 100) / 100}`);
+          out.push(`${x1.toFixed(1)} ${ny1.toFixed(1)} ${x.toFixed(1)} ${ny.toFixed(1)}`);
           i += 4;
         } else if (upper === "C") {
           const x1 = parseFloat(tokens[i]);
@@ -879,7 +880,7 @@
           const ny1 = isRel ? -y1 : (heightOffset - y1);
           const ny2 = isRel ? -y2 : (heightOffset - y2);
           const ny = isRel ? -y : (heightOffset - y);
-          out.push(`${x1} ${Math.round(ny1 * 100) / 100} ${x2} ${Math.round(ny2 * 100) / 100} ${x} ${Math.round(ny * 100) / 100}`);
+          out.push(`${x1.toFixed(1)} ${ny1.toFixed(1)} ${x2.toFixed(1)} ${ny2.toFixed(1)} ${x.toFixed(1)} ${ny.toFixed(1)}`);
           i += 6;
         } else {
           out.push(tokens[i]);
@@ -911,7 +912,8 @@
       isQuizMode: false,
       showOutline: true,
       activeWorksheetMode: "ws1", // 'ws1' | 'ws2'
-      ws2MultiMode: false
+      ws2MultiMode: false,
+      isExportingPDF: false
     };
 
     async function fetchTraditionalCharData(char) {
@@ -930,7 +932,6 @@
           if (res.ok) {
             const rawData = await res.json();
             if (rawData && Array.isArray(rawData.strokes) && rawData.strokes.length > 0) {
-              // Pre-bake positive top-down Y coordinates alongside raw HanziWriter data
               const yDownStrokes = rawData.strokes.map(d => flipSvgPathY(d, 900));
               const yDownMedians = (rawData.medians || []).map(med =>
                 med.map(pt => [pt[0], Math.round((900 - pt[1]) * 100) / 100])
@@ -945,7 +946,7 @@
             }
           }
         } catch (e) {
-          // Try next fallback CDN
+          // Try next CDN
         }
       }
       throw new Error(`暫時無法載入「${char}」的繁體筆順向量資料`);
@@ -1212,8 +1213,6 @@
     /**
      * ============================================================================
      * 6. VISUAL-ONLY STROKE-ORDER ARROW DIAGRAM & NINE-PALACE SVG GENERATORS
-     *    Uses pre-baked positive Y-down coordinates (`yDownStrokes` / `yDownMedians`)
-     *    so ZERO negative scale transform exists anywhere in the DOM!
      * ============================================================================
      */
     function buildVisualArrowDiagramSVG(charData, options = {}) {
@@ -1226,7 +1225,7 @@
       } = options;
 
       if (!charData || !charData.yDownStrokes) {
-        return `<svg viewBox="0 0 1024 1024" width="${size}" height="${size}"></svg>`;
+        return `<svg viewBox="0 0 1024 1024" width="${size}" height="${size}" style="display:block;overflow:hidden;"></svg>`;
       }
 
       const strokes = charData.yDownStrokes;
@@ -1308,7 +1307,7 @@
       }
 
       return `
-        <svg viewBox="0 0 1024 1024" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" class="block">
+        <svg viewBox="0 0 1024 1024" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" style="display: block; overflow: hidden;">
           ${defs}
           ${gridGuides}
           ${pathsHtml}
@@ -1329,7 +1328,7 @@
       }
 
       return `
-        <svg viewBox="0 0 1024 1024" style="width: 100%; height: 100%; display: block; background: #ffffff;" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 1024 1024" style="width: 100%; height: 100%; display: block; overflow: hidden; background: #ffffff;" xmlns="http://www.w3.org/2000/svg">
           <rect x="6" y="6" width="1012" height="1012" fill="#ffffff" stroke="#c83e37" stroke-width="14" />
           <line x1="341" y1="12" x2="341" y2="1012" stroke="#e5a3a0" stroke-width="8" stroke-dasharray="22,16" />
           <line x1="682" y1="12" x2="682" y2="1012" stroke="#e5a3a0" stroke-width="8" stroke-dasharray="22,16" />
@@ -1406,7 +1405,6 @@
 
         updateStrokeCounterLabel(state.totalStrokes, state.totalStrokes);
 
-        // Render Visual-Only Stroke-Order Arrow Diagram + Progressive Step Mini Strip
         document.getElementById("diagram-stroke-count").textContent = `共 ${state.totalStrokes} 畫`;
         document.getElementById("main-arrow-svg-box").innerHTML = buildVisualArrowDiagramSVG(charData, {
           size: 86,
@@ -1463,14 +1461,14 @@
 
       if (state.isQuizMode) {
         helperRow.classList.remove("hidden");
-        btnText.textContent = "結束練習";
+        btnText.textContent = "結束測驗";
         feedback.className = "mt-3 w-full text-center text-xs font-bold py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200";
-        feedback.textContent = "✍️ 寫字練習中：請用手指或滑鼠在格內依筆順書寫";
+        feedback.textContent = "✍️ 寫字練習測驗中：請用手指或滑鼠在格內依筆順書寫";
       } else {
         helperRow.classList.add("hidden");
-        btnText.textContent = "寫字練習";
+        btnText.textContent = "寫字練習測驗";
         feedback.className = "mt-3 w-full text-center text-xs font-semibold py-2 px-3 rounded-xl bg-stone-100 text-stone-700";
-        feedback.textContent = "點擊「筆順演示」觀看動態寫法，或點擊「寫字練習」在格內書寫";
+        feedback.textContent = "點擊「筆順演示」觀看動態寫法，或點擊「寫字練習測驗」在格內書寫";
       }
     }
 
@@ -1711,11 +1709,9 @@
 
     /**
      * ============================================================================
-     * 9. STRICT SINGLE-PAGE A4 WORKSHEET BUILDER (794px × 1123px @ 96 DPI)
+     * 9. STRICT SINGLE-PAGE A4 WORKSHEET BUILDER (794px × 1122px / 210mm × 297mm)
      *    - Worksheet 1: Standard Teaching Worksheet (24 Nine-Palace Grids: 4×6)
      *    - Worksheet 2: Full-Page Practice Worksheet (24 Large Nine-Palace Grids: 6×4)
-     *    - Strict one-page calibration: 134px × 134px cells, compact 82px header,
-     *      zero overflow, pre-baked positive Y-down SVG coordinates.
      * ============================================================================
      */
     async function renderWorksheetHTML(mode = "ws1", multiMode = false) {
@@ -1771,7 +1767,7 @@
         });
 
         container.innerHTML = `
-          <div style="width: 794px; height: 1123px; padding: 34px 44px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff; overflow: hidden;">
+          <div style="width: 794px; height: 1122px; padding: 34px 44px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff; overflow: hidden;">
             
             <!-- Header -->
             <div style="border-bottom: 2px solid #c83e37; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -1788,7 +1784,7 @@
 
             <!-- Visual Arrow Stroke Diagram + Radical/Jyutping/English & Step Mini Grids -->
             <div style="display: flex; gap: 14px; align-items: stretch; border: 1.5px solid #e7e5e4; border-radius: 6px; padding: 10px; background: #fffcfb;">
-              <div style="width: 126px; height: 126px; border: 1.5px solid #c83e37; border-radius: 6px; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <div style="width: 126px; height: 126px; border: 1.5px solid #c83e37; border-radius: 6px; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
                 ${arrowDiagram}
               </div>
 
@@ -1852,9 +1848,7 @@
         `;
       } else {
         // WORKSHEET 2: Full-Page Large Practice Worksheet (24 Large Nine-Palace Grids: 6 rows x 4 cols)
-        // Strict One-Page Calibration:
-        // Total Height = 1123px | Vertical Padding = 28px*2 (56px) | Header = 84px | Footer = 26px
-        // Grid Area Height = 6 * 144px + 5 * 8px = 864 + 40 = 904px -> Total = 1070px < 1123px (Zero overflow!)
+        // Strict One-Page Calibration with clean flex-shrink: 0 header & zero SVG text overflow
         const isMulti = multiMode && state.chars.length > 1;
         const targetChars = isMulti ? state.chars.slice(0, 6) : [activeChar];
 
@@ -1864,16 +1858,16 @@
         }
 
         let refDiagramsHtml = "";
-        for (const ch of targetChars.slice(0, 3)) {
+        for (const ch of targetChars.slice(0, 2)) {
           const d = dataMap[ch];
           const lx = await resolveLexicalEntry(ch, d.strokes.length);
           refDiagramsHtml += `
-            <div style="display: flex; align-items: center; gap: 7px; border: 1px solid #fecaca; background: #fffcfb; border-radius: 5px; padding: 4px 8px;">
-              <div style="width: 58px; height: 58px; border: 1px solid #c83e37; border-radius: 4px; background: #fff; flex-shrink: 0;">
-                ${buildVisualArrowDiagramSVG(d, { size: 56, showNumbers: true, showArrows: true, idPrefix: `ws2-ref-${ch}` })}
+            <div style="display: flex; align-items: center; gap: 8px; border: 1.5px solid #fecaca; background: #fffcfb; border-radius: 6px; padding: 4px 10px; flex-shrink: 0;">
+              <div style="width: 68px; height: 68px; border: 1.5px solid #c83e37; border-radius: 4px; background: #ffffff; flex-shrink: 0; overflow: hidden;">
+                ${buildVisualArrowDiagramSVG(d, { size: 65, showNumbers: true, showArrows: true, idPrefix: `ws2-ref-${ch}` })}
               </div>
-              <div style="font-size: 11px; line-height: 1.35;">
-                <div style="font-weight: 800; color: #b91c1c;">部首：${lx.radical} (${d.strokes}畫)</div>
+              <div style="font-size: 11px; line-height: 1.4; white-space: nowrap;">
+                <div style="font-weight: 800; color: #b91c1c;">部首：${lx.radical}（${d.strokes.length}畫）</div>
                 <div style="color: #166534; font-weight: 700;">粵拼：${lx.jyutping}</div>
                 <div style="color: #1e40af; font-weight: 600;">普通話：${lx.pinyin}</div>
               </div>
@@ -1881,7 +1875,7 @@
           `;
         }
 
-        // 24 Large Nine-Palace Grids (6 rows x 4 columns, 144px x 144px each)
+        // 24 Large Nine-Palace Grids (6 rows x 4 columns, 142px x 142px each)
         let grid24LargeHtml = "";
         if (!isMulti) {
           const d = dataMap[activeChar];
@@ -1889,7 +1883,7 @@
             const variant = row === 0 ? "dark-red" : (row <= 2 ? "light-grey" : "blank");
             for (let col = 0; col < 4; col++) {
               grid24LargeHtml += `
-                <div style="width: 144px; height: 144px;">
+                <div style="width: 142px; height: 142px;">
                   ${buildWorksheetGridBoxSVG(d, variant)}
                 </div>
               `;
@@ -1908,7 +1902,7 @@
               for (let col = 0; col < 4; col++) {
                 const variant = col === 0 ? "dark-red" : (col === 1 ? "light-grey" : "blank");
                 grid24LargeHtml += `
-                  <div style="width: 144px; height: 144px;">
+                  <div style="width: 142px; height: 142px;">
                     ${buildWorksheetGridBoxSVG(d, variant)}
                   </div>
                 `;
@@ -1918,30 +1912,30 @@
         }
 
         container.innerHTML = `
-          <div style="width: 794px; height: 1123px; padding: 26px 46px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff; overflow: hidden;">
+          <div style="width: 794px; height: 1122px; padding: 26px 46px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff; overflow: hidden;">
             
-            <!-- Compact Name/Date Header + Visual Arrow Stroke Reference Box -->
-            <div style="height: 78px; border-bottom: 2px solid #c83e37; padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 10px; shrink-0;">
-              <div>
-                <div style="font-size: 18px; font-weight: 800; color: #c83e37;">工作紙 2：全版練字工作紙（24格大九宮格）</div>
-                <div style="font-size: 12px; font-weight: 600; color: #1c1917; margin-top: 6px;">
-                  姓名：____________ &nbsp; 班別：_____ &nbsp; 日期：___月___日
+            <!-- Clean Fixed-Layout Header + Visual Arrow Stroke Reference Box -->
+            <div style="height: 86px; border-bottom: 2px solid #c83e37; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-shrink: 0; overflow: hidden;">
+              <div style="flex-shrink: 0;">
+                <div style="font-size: 18px; font-weight: 800; color: #c83e37; white-space: nowrap;">香港小學全版練字工作紙（24格大九宮格）</div>
+                <div style="font-size: 12px; font-weight: 600; color: #1c1917; margin-top: 8px; white-space: nowrap;">
+                  姓名：____________ &nbsp;&nbsp; 班別：_____ &nbsp;&nbsp; 日期：___月___日
                 </div>
               </div>
-              <div style="display: flex; gap: 8px; justify-content: flex-end;">
+              <div style="display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0;">
                 ${refDiagramsHtml}
               </div>
             </div>
 
             <!-- 24 Large Nine-Palace Grids (6 rows x 4 columns) -->
-            <div style="display: grid; grid-template-columns: repeat(4, 144px); gap: 8px 36px; justify-content: center; margin: auto 0;">
+            <div style="display: grid; grid-template-columns: repeat(4, 142px); gap: 8px 38px; justify-content: center; margin: auto 0;">
               ${grid24LargeHtml}
             </div>
 
             <!-- Bottom Footer -->
-            <div style="height: 22px; border-top: 1px solid #e7e5e4; padding-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #78716c;">
+            <div style="height: 22px; border-top: 1px solid #e7e5e4; padding-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #78716c; flex-shrink: 0;">
               <span>香港小學學習字詞表 • 繁體中文硬筆書法全版練習（單頁 A4 格式）</span>
-              <span style="font-weight: 700;">鼓勵星星：☆☆☆☆☆</span>
+              <span style="font-weight: 700;">寫字小貼士：坐姿端正，跟著筆順慢慢寫！ ☆☆☆☆☆</span>
             </div>
 
           </div>
@@ -2067,7 +2061,7 @@
                 }, 400);
               };
               if (document.fonts && document.fonts.ready) {
-                document.fonts.ready.then(triggerPrint);
+                Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1500))]).then(triggerPrint);
               } else {
                 triggerPrint();
               }
@@ -2079,7 +2073,32 @@
       win.document.close();
     }
 
+    async function ensurePdfLibraries() {
+      const loadScript = url =>
+        new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = url;
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+
+      if (typeof window.html2canvas === "undefined") {
+        try {
+          await loadScript("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js");
+        } catch (e) {}
+      }
+      if (typeof window.jspdf === "undefined") {
+        try {
+          await loadScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js");
+        } catch (e) {}
+      }
+    }
+
     async function downloadHighResA4PDF() {
+      if (state.isExportingPDF) return;
+      state.isExportingPDF = true;
+
       const btn = document.getElementById("btn-download-a4-pdf");
       const origHTML = btn.innerHTML;
       btn.innerHTML = `<span>⏳</span><span>生成單頁 A4 PDF 中...</span>`;
@@ -2088,23 +2107,25 @@
       let offscreenHost = null;
 
       try {
+        await ensurePdfLibraries();
         if (typeof window.html2canvas === "undefined" || typeof window.jspdf === "undefined") {
-          throw new Error("PDF 匯出模組載入中，為您切換至獨立列印視窗");
+          throw new Error("PDF 匯出模組載入受限，為您切換至獨立列印視窗");
         }
 
-        // Wait for fonts to finish loading so KaiTi / Noto Serif renders crisply
         if (document.fonts && document.fonts.ready) {
-          await document.fonts.ready;
+          await Promise.race([
+            document.fonts.ready,
+            new Promise(resolve => setTimeout(resolve, 1500))
+          ]);
         }
 
-        // Clone worksheet into a dedicated unscaled offscreen 96-DPI A4 container (794px x 1123px)
         offscreenHost = document.createElement("div");
         offscreenHost.style.cssText = [
           "position: fixed",
           "left: -9999px",
           "top: 0",
           "width: 794px",
-          "height: 1123px",
+          "height: 1122px",
           "margin: 0",
           "padding: 0",
           "overflow: hidden",
@@ -2115,15 +2136,14 @@
         offscreenHost.innerHTML = document.getElementById("print-area").innerHTML;
         document.body.appendChild(offscreenHost);
 
-        // Allow browser a frame to lay out cloned SVG paths
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
         const canvas = await window.html2canvas(offscreenHost, {
           scale: 2.5,
           width: 794,
-          height: 1123,
+          height: 1122,
           windowWidth: 794,
-          windowHeight: 1123,
+          windowHeight: 1122,
           scrollX: 0,
           scrollY: 0,
           useCORS: true,
@@ -2161,6 +2181,7 @@
         }
         btn.innerHTML = origHTML;
         btn.disabled = false;
+        state.isExportingPDF = false;
       }
     }
 
