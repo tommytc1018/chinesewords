@@ -2,992 +2,1071 @@
 <html lang="zh-Hant-HK">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>香港小學學習字詞表 · 互動筆順與雙模式A4練字工作紙</title>
-  <!-- Tailwind CSS -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>香港小學學習字詞表 — 繁體中文筆順與寫字練習系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Hanzi Writer 筆順核心函式庫 (雙 CDN 自動容錯) -->
-  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/hanzi-writer@3.5/dist/hanzi-writer.min.js'"></script>
-  <!-- html2canvas & jsPDF 用於純前端高畫質 A4 PDF 直接下載 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- Google Fonts：繁體中文楷體與思源黑體 -->
+  <!-- Primary & Fallback HanziWriter Loader -->
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/hanzi-writer@3.5/dist/hanzi-writer.min.js';"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg-paper: #FAF7F0;
-      --ink-primary: #1E293B;
-      --brand-indigo: #1E40AF;
-      --brand-crimson: #D9381E;
-      --brand-emerald: #047857;
+      --bg-paper: #faf8f5;
+      --ink-dark: #1c1917;
+      --accent-vermilion: #c83e37;
+      --accent-jade: #2b6e5c;
     }
 
     body {
-      font-family: 'Noto Sans TC', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: var(--bg-paper);
-      color: var(--ink-primary);
-      -webkit-tap-highlight-color: transparent;
+      color: var(--ink-dark);
+      overflow-x: hidden;
     }
 
-    .font-kaiti {
-      font-family: 'DFKai-SB', 'BiauKai', 'STKaiti', 'KaiTi', 'Noto Sans TC', serif;
+    .font-kai {
+      font-family: "DFKai-SB", "BiauKai", "標楷體", "Kaiti TC", "STKaiti", "Noto Serif TC", serif;
     }
 
-    /* 禁止手寫練習區觸控捲動，確保 iPad / 手機手指書寫流暢 */
+    /* Prevent page scrolling when drawing strokes on touch devices */
     #hanzi-writer-target {
-      touch-action: none !important;
+      touch-action: none;
       user-select: none;
       -webkit-user-select: none;
     }
 
-    #print-worksheet-container {
-      display: none;
+    /* Nine-Palace Grid (九宮格) */
+    .grid-jiugong {
+      background-image:
+        linear-gradient(to right, transparent 33.0%, #e5b8b7 33.0%, #e5b8b7 33.7%, transparent 33.7%, transparent 66.3%, #e5b8b7 66.3%, #e5b8b7 67.0%, transparent 67.0%),
+        linear-gradient(to bottom, transparent 33.0%, #e5b8b7 33.0%, #e5b8b7 33.7%, transparent 33.7%, transparent 66.3%, #e5b8b7 66.3%, #e5b8b7 67.0%, transparent 67.0%);
+      border: 2.5px solid #c83e37;
+      background-color: #ffffff;
     }
 
-    ::-webkit-scrollbar {
-      width: 7px;
-      height: 7px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #F1EFEA;
-      border-radius: 9999px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #CBD5E1;
-      border-radius: 9999px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94A3B8;
+    /* Four-Quadrant Grid (田字格) */
+    .grid-tianzige {
+      background-image:
+        linear-gradient(to right, transparent 49.5%, #e5b8b7 49.5%, #e5b8b7 50.5%, transparent 50.5%),
+        linear-gradient(to bottom, transparent 49.5%, #e5b8b7 49.5%, #e5b8b7 50.5%, transparent 50.5%);
+      border: 2.5px solid #c83e37;
+      background-color: #ffffff;
     }
 
-    /* ================= 當前頁面直接列印 (@media print) ================= */
+    /* Blank Grid (空白格) */
+    .grid-blank {
+      border: 2.5px solid #c83e37;
+      background-color: #ffffff;
+    }
+
+    /* Flash error animation on mistake */
+    @keyframes shakeError {
+      0%, 100% { transform: translateX(0); box-shadow: inset 0 0 0 0 rgba(220, 38, 38, 0); }
+      25% { transform: translateX(-5px); box-shadow: inset 0 0 24px rgba(220, 38, 38, 0.35); }
+      50% { transform: translateX(5px); box-shadow: inset 0 0 24px rgba(220, 38, 38, 0.35); }
+      75% { transform: translateX(-3px); }
+    }
+    .flash-mistake {
+      animation: shakeError 0.35s ease-in-out;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Single-Page A4 Printable Sheet Strict Dimensions (210mm x 297mm) */
+    .a4-sheet {
+      width: 210mm;
+      height: 297mm;
+      max-width: 210mm;
+      max-height: 297mm;
+      box-sizing: border-box;
+      overflow: hidden;
+      background: #ffffff;
+      color: #111827;
+      margin: 0 auto;
+      position: relative;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+    }
+
     @media print {
       @page {
         size: A4 portrait;
-        margin: 8mm 10mm;
+        margin: 0;
       }
-
       html, body {
-        background: #FFFFFF !important;
-        color: #111111 !important;
+        width: 210mm;
+        height: 297mm;
         margin: 0 !important;
         padding: 0 !important;
-        width: 100% !important;
-        height: auto !important;
-        overflow: visible !important;
-        print-color-adjust: exact !important;
+        background: #ffffff !important;
         -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
-
-      #interactive-app,
-      #toast-container,
-      #worksheet-preview-modal {
-        display: none !important;
+      body * {
+        visibility: hidden;
       }
-
-      #print-worksheet-container {
-        display: block !important;
-        position: static !important;
-        width: 100% !important;
-        max-width: 190mm !important;
-        margin: 0 auto !important;
-        background: #FFFFFF !important;
-        visibility: visible !important;
+      #printable-a4-container, #printable-a4-container * {
+        visibility: visible;
+      }
+      #printable-a4-container {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        transform: none !important;
+        z-index: 99999 !important;
       }
     }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- 頂部浮動通知容器 -->
-  <div id="toast-container" class="fixed top-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none max-w-sm"></div>
+  <!-- Toast Notification Banner (Never uses alert() or confirm()) -->
+  <div id="toast-banner" class="fixed bottom-5 right-5 z-50 hidden transform transition-all duration-300 translate-y-4 opacity-0">
+    <div class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg bg-stone-900 text-white text-sm font-medium border border-stone-700">
+      <span id="toast-icon">✨</span>
+      <span id="toast-msg">提示訊息</span>
+    </div>
+  </div>
 
-  <!-- ==================== 互動學習主介面 ==================== -->
-  <div id="interactive-app" class="flex-1 flex flex-col max-w-6xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 gap-4 sm:gap-5">
-
-    <!-- 頂部標題與生字搜尋列 -->
-    <header class="bg-white rounded-2xl shadow-sm border border-amber-200/70 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-      <div class="flex items-center gap-3.5">
-        <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#D9381E] to-[#991B1B] text-white flex items-center justify-center shadow-md shrink-0 border-2 border-amber-100">
-          <span class="font-kaiti text-2xl sm:text-3xl font-bold">字</span>
-        </div>
-        <div>
-          <div class="flex items-center gap-2 flex-wrap">
-            <h1 class="text-lg sm:text-2xl font-black text-slate-800 tracking-tight">香港小學學習字詞表</h1>
-            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">HK Chinese Lexical List</span>
-            <span id="voice-status-badge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span id="voice-status-text">粵語語音偵測中...</span>
-            </span>
+  <!-- Top Navigation Header -->
+  <header class="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <!-- Brand & Title -->
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-[#c83e37] to-[#991b1b] text-white flex items-center justify-center shadow-sm shrink-0">
+            <span class="font-kai text-2xl font-bold">張</span>
           </div>
-          <p class="text-xs sm:text-sm text-slate-500 mt-1">香港標準筆順箭嘴 · 觸控手寫糾錯 · 粵普雙語發音 · 雙模式 A4 練字工作紙</p>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-stone-900">香港小學學習字詞表</h1>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-red-50 text-[#c83e37] border border-red-200">繁體中文 4–12歲</span>
+            </div>
+            <p class="text-xs text-stone-500">繁體中文筆順動畫、粵普雙語發音及單頁 A4 練字工作紙系統</p>
+          </div>
+        </div>
+
+        <!-- Character Search Bar -->
+        <div class="flex items-center gap-2 w-full md:w-auto">
+          <div class="relative flex-1 md:w-72">
+            <input
+              id="char-search-input"
+              type="text"
+              maxlength="12"
+              placeholder="輸入繁體字或詞語 (預設：張)"
+              class="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c83e37]/40 focus:border-[#c83e37] text-sm font-medium text-stone-900 transition"
+            />
+            <button
+              id="clear-search-btn"
+              title="清除輸入"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1 rounded-lg cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          <button
+            id="search-submit-btn"
+            class="px-4 py-2.5 rounded-xl bg-[#c83e37] hover:bg-[#b0322b] active:scale-[0.98] text-white font-bold text-sm shadow-sm transition shrink-0 cursor-pointer"
+          >
+            查詢生字
+          </button>
         </div>
       </div>
 
-      <!-- 搜尋表單與工作紙預覽按鈕 -->
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-        <form id="search-form" class="flex items-center bg-stone-100 border-2 border-stone-200 focus-within:border-indigo-600 focus-within:bg-white rounded-xl px-3 py-1 transition-all">
-          <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path stroke-linecap="round" d="M21 21l-4.35-4.35"></path>
-          </svg>
-          <input
-            id="char-search-input"
-            type="text"
-            maxlength="8"
-            placeholder="輸入單字或多字(如張晴濬)..."
-            aria-label="輸入繁體中文字查詢"
-            class="bg-transparent border-none outline-none px-2.5 py-1.5 text-base font-bold text-slate-800 w-full sm:w-48 placeholder:font-normal placeholder:text-slate-400"
-          />
-          <button
-            type="submit"
-            class="bg-indigo-700 hover:bg-indigo-800 active:scale-95 text-white font-bold text-sm px-4 py-2 rounded-lg transition-all shrink-0 shadow-xs"
-          >
-            查字
-          </button>
-        </form>
-
-        <button
-          id="btn-open-worksheet-modal"
-          type="button"
-          class="flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white font-bold text-sm px-4 py-3 rounded-xl shadow-sm transition-all shrink-0"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-          </svg>
-          <span>預覽 / 列印 A4 工作紙</span>
-        </button>
+      <!-- Quick-Select Pills Bar -->
+      <div class="mt-3 pt-2.5 border-t border-stone-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <span class="text-xs font-bold text-stone-500 shrink-0">精選字詞：</span>
+        <div id="quick-pills-container" class="flex items-center gap-1.5"></div>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <!-- 多字搜尋切換條（當用戶輸入多個字如「張晴濬」時自動出現） -->
-    <section id="multi-query-bar" class="hidden bg-indigo-50/90 rounded-2xl border border-indigo-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-2.5 flex-wrap">
-        <span class="text-xs font-black text-indigo-900 bg-indigo-200/80 px-2.5 py-1 rounded-lg">本次查詢多字組</span>
-        <div id="multi-query-chips" class="flex items-center gap-1.5"></div>
+  <!-- Multi-Character Switcher Bar (Shown when multiple characters are entered) -->
+  <div id="multi-char-bar" class="hidden bg-amber-50 border-b border-amber-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xs font-bold text-amber-900">詞組生字切換：</span>
+        <div id="multi-char-tabs" class="flex items-center gap-1.5"></div>
       </div>
       <button
-        id="btn-send-multiquery-to-ws2"
-        type="button"
-        class="text-xs font-extrabold bg-indigo-700 hover:bg-indigo-800 text-white px-3.5 py-2 rounded-xl shadow-xs transition-all"
+        id="open-ws2-multi-btn"
+        class="px-3.5 py-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5"
       >
-        一鍵帶入「全版 20 格練字工作紙」多字練習 →
+        <span>📝</span>
+        <span>生成全組多字練字紙（工作紙 2）</span>
       </button>
-    </section>
+    </div>
+  </div>
 
-    <!-- 香港幼稚園／小學常用字快速選字列 -->
-    <section class="bg-white rounded-2xl shadow-sm border border-amber-200/60 p-3 sm:p-4">
-      <div class="flex items-center justify-between mb-2.5 px-1">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-800 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100">香港幼小常用字庫 (46字)</span>
-          <span class="text-xs text-slate-500 hidden sm:inline">點擊任意生字立即切換筆順與發音，亦可於上方搜尋框輸入任何繁體新字</span>
-        </div>
-        <button id="btn-toggle-char-drawer" type="button" class="text-xs font-bold text-indigo-700 hover:text-indigo-900 px-2.5 py-1 rounded-lg bg-indigo-50/70 hover:bg-indigo-100 transition-colors">
-          展開全部生字 ▾
-        </button>
-      </div>
-      <div id="preset-chars-bar" class="flex items-center gap-2 overflow-x-auto pb-1.5">
-        <!-- 由 JS 動態填入 46 個常用字按鈕 -->
-      </div>
-    </section>
+  <!-- Main Interactive Learning Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-    <!-- 主要雙欄互動工作區 -->
-    <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
-
-      <!-- 左欄：互動筆順示範與觸控手寫糾錯畫布 (佔 5 欄) -->
-      <section class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-amber-200/70 p-4 sm:p-5 flex flex-col items-center gap-4">
-        <!-- 格線與字影控制列 -->
-        <div class="w-full flex flex-wrap items-center justify-between gap-2 bg-stone-100/80 p-2 rounded-xl border border-stone-200/80">
-          <div class="flex items-center gap-1" role="group" aria-label="格線樣式切換">
-            <button type="button" data-grid="nine" class="grid-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-700 text-white shadow-xs transition-all">九宮格</button>
-            <button type="button" data-grid="four" class="grid-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-white transition-all">田字格</button>
-            <button type="button" data-grid="blank" class="grid-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-white transition-all">空白格</button>
+      <!-- LEFT COLUMN (5 cols): Interactive Stroke-Order & Handwriting Practice Canvas -->
+      <section class="lg:col-span-5 bg-white rounded-2xl border border-stone-200/90 shadow-sm p-5 flex flex-col gap-4">
+        <!-- Grid Overlay Toggles & Speed Selector -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
+          <div class="inline-flex rounded-xl bg-stone-100 p-1" role="group">
+            <button data-grid="jiugong" class="grid-mode-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-[#c83e37] shadow-xs transition cursor-pointer">九宮格</button>
+            <button data-grid="tianzige" class="grid-mode-btn px-2.5 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer">田字格</button>
+            <button data-grid="blank" class="grid-mode-btn px-2.5 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer">空白格</button>
           </div>
 
-          <div class="flex items-center gap-1.5">
-            <button id="btn-toggle-speed" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-stone-200 hover:bg-stone-50 transition-all">
-              速度：正常
+          <div class="inline-flex rounded-xl bg-stone-100 p-1" role="group">
+            <button data-speed="0.55" class="speed-btn px-2.5 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer">慢速</button>
+            <button data-speed="1.1" class="speed-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-900 shadow-xs transition cursor-pointer">正常</button>
+            <button data-speed="2.2" class="speed-btn px-2.5 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer">快速</button>
+          </div>
+        </div>
+
+        <!-- Canvas Stage -->
+        <div class="relative flex flex-col items-center justify-center">
+          <div
+            id="canvas-frame"
+            class="grid-jiugong relative rounded-2xl shadow-inner flex items-center justify-center overflow-hidden transition-all"
+            style="width: 280px; height: 280px;"
+          >
+            <!-- Loading Spinner Overlay -->
+            <div id="writer-loader" class="absolute inset-0 bg-white/90 backdrop-blur-xs flex flex-col items-center justify-center z-20 hidden">
+              <div class="w-8 h-8 border-3 border-[#c83e37] border-t-transparent rounded-full animate-spin"></div>
+              <span class="mt-2 text-xs font-bold text-stone-600">載入繁體筆順資料中...</span>
+            </div>
+
+            <!-- HanziWriter SVG Target -->
+            <div id="hanzi-writer-target" class="w-[260px] h-[260px]"></div>
+
+            <!-- Stroke Counter Badge -->
+            <div class="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-stone-900/80 text-white text-xs font-bold backdrop-blur-xs pointer-events-none">
+              筆順：<span id="stroke-progress-label">0 / 0</span>
+            </div>
+
+            <!-- Outline Toggle Button Inside Top-Right Corner -->
+            <button
+              id="btn-canvas-outline-toggle"
+              class="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-white/90 hover:bg-white border border-stone-300 text-stone-700 text-xs font-bold shadow-2xs transition cursor-pointer"
+              title="顯示或隱藏字影底稿"
+            >
+              👁️ 字影
             </button>
-            <button id="btn-toggle-outline" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 transition-all">
-              字影：開
-            </button>
+          </div>
+
+          <!-- Interactive Quiz & Animation Status Bar -->
+          <div id="quiz-feedback-bar" class="mt-3 w-full text-center text-xs font-semibold py-2 px-3 rounded-xl bg-stone-100 text-stone-700">
+            點擊「筆順演示」觀看動態寫法，或點擊「寫字練習」在格內書寫
           </div>
         </div>
 
-        <!-- 互動練字畫布容器 -->
-        <div id="canvas-outer-box" class="relative w-full max-w-[320px] aspect-square bg-[#FFFDF9] rounded-2xl border-[3px] border-[#D9381E] shadow-inner overflow-hidden flex items-center justify-center transition-colors duration-200">
-          <svg id="canvas-grid-svg" viewBox="0 0 300 300" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
-          <div id="hanzi-writer-target" class="relative z-10 w-full h-full flex items-center justify-center"></div>
+        <!-- Primary Playback & Step Controls -->
+        <div class="grid grid-cols-5 gap-1.5">
+          <button
+            id="btn-prev-stroke"
+            class="py-2.5 px-1.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 active:scale-[0.98] text-stone-800 font-bold text-xs flex flex-col items-center justify-center gap-0.5 transition cursor-pointer"
+            title="上一筆"
+          >
+            <span>⏮</span><span>上一筆</span>
+          </button>
 
-          <!-- 載入中遮罩 -->
-          <div id="canvas-loading-overlay" class="hidden absolute inset-0 z-20 bg-white/90 backdrop-blur-xs flex flex-col items-center justify-center gap-2 p-4 text-center">
-            <div class="w-9 h-9 border-4 border-indigo-200 border-t-indigo-700 rounded-full animate-spin"></div>
-            <span class="text-sm font-bold text-slate-700">正在載入香港標準筆順...</span>
+          <button
+            id="btn-play-pause"
+            class="py-2.5 px-1.5 rounded-xl bg-[#c83e37] hover:bg-[#b0322b] active:scale-[0.98] text-white font-bold text-xs flex flex-col items-center justify-center gap-0.5 shadow-xs transition cursor-pointer"
+          >
+            <span id="play-pause-icon">▶</span><span id="play-pause-text">筆順演示</span>
+          </button>
+
+          <button
+            id="btn-next-stroke"
+            class="py-2.5 px-1.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 active:scale-[0.98] text-stone-800 font-bold text-xs flex flex-col items-center justify-center gap-0.5 transition cursor-pointer"
+            title="下一筆"
+          >
+            <span>⏭</span><span>下一筆</span>
+          </button>
+
+          <button
+            id="btn-reset-canvas"
+            class="py-2.5 px-1.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 active:scale-[0.98] text-stone-800 font-bold text-xs flex flex-col items-center justify-center gap-0.5 transition cursor-pointer"
+            title="重設畫布"
+          >
+            <span>🔄</span><span>重設</span>
+          </button>
+
+          <button
+            id="btn-quiz-toggle"
+            class="py-2.5 px-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white font-bold text-xs flex flex-col items-center justify-center gap-0.5 shadow-xs transition cursor-pointer"
+          >
+            <span>✍️</span><span id="quiz-btn-text">寫字練習</span>
+          </button>
+        </div>
+
+        <!-- Quiz Helper Bar (Hint Next Stroke) -->
+        <div id="quiz-helper-row" class="hidden">
+          <button
+            id="btn-stroke-hint"
+            class="w-full py-2 px-3 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs transition cursor-pointer"
+          >
+            💡 提示下一筆位置與方向
+          </button>
+        </div>
+
+        <!-- Visual-Only Stroke-Order Arrow Diagram (Red start numbers + Blue dashed arrows) -->
+        <div class="pt-3 border-t border-stone-100">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-stone-700">視覺筆順箭頭圖解（紅點起筆序號・藍虛線運筆方向）</span>
+            <span id="diagram-stroke-count" class="text-[11px] font-bold text-stone-500">共 0 畫</span>
           </div>
-
-          <!-- 手寫測驗即時回饋提示膠囊 -->
-          <div id="quiz-feedback-banner" class="hidden absolute bottom-3 left-3 right-3 z-20 px-3 py-2 rounded-xl text-center text-xs sm:text-sm font-extrabold shadow-md transition-all"></div>
-        </div>
-
-        <!-- 筆畫進度指示器 -->
-        <div class="w-full flex items-center justify-between px-2 text-xs sm:text-sm font-bold text-slate-600">
-          <span id="stroke-progress-label">目前筆畫：準備就緒</span>
-          <span id="mode-indicator-badge" class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">示範模式</span>
-        </div>
-
-        <!-- 主要筆順互動控制按鈕群 -->
-        <div class="w-full grid grid-cols-2 gap-2.5">
-          <button id="btn-animate-full" type="button" class="flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-800 active:scale-95 text-white font-bold text-sm py-3 px-4 rounded-xl shadow-sm transition-all">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-            </svg>
-            <span id="btn-animate-label">播放筆順動畫</span>
-          </button>
-
-          <button id="btn-start-quiz" type="button" class="flex items-center justify-center gap-2 bg-[#D9381E] hover:bg-[#B92B14] active:scale-95 text-white font-bold text-sm py-3 px-4 rounded-xl shadow-sm transition-all">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-            <span>寫字練習（糾錯測驗）</span>
-          </button>
-        </div>
-
-        <!-- 逐筆拆解控制列 -->
-        <div class="w-full grid grid-cols-3 gap-2">
-          <button id="btn-prev-stroke" type="button" class="py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-slate-700 font-bold text-xs sm:text-sm border border-stone-200 transition-all">
-            ◀ 上一筆
-          </button>
-          <button id="btn-next-stroke" type="button" class="py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-slate-700 font-bold text-xs sm:text-sm border border-stone-200 transition-all">
-            下一筆 ▶
-          </button>
-          <button id="btn-reset-canvas" type="button" class="py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-slate-700 font-bold text-xs sm:text-sm border border-stone-200 transition-all">
-            ↺ 重設畫布
-          </button>
+          <div class="flex items-center gap-3 bg-stone-50 rounded-xl p-3 border border-stone-200/80">
+            <div id="main-arrow-svg-box" class="w-24 h-24 bg-white rounded-xl border border-red-200 shrink-0 flex items-center justify-center p-1 shadow-2xs"></div>
+            <div id="step-mini-strip" class="flex-1 flex items-center gap-1.5 overflow-x-auto py-1 no-scrollbar"></div>
+          </div>
         </div>
       </section>
 
-      <!-- 右欄：字詞表屬性、粵普雙語發音、例句與兩行五列詞語 (佔 7 欄) -->
-      <section class="lg:col-span-7 flex flex-col gap-4 sm:gap-5">
+      <!-- RIGHT COLUMN (7 cols): Lexical Info, Cantonese/Mandarin Audio, 2x5 Vocabulary & A4 Worksheets -->
+      <section class="lg:col-span-7 flex flex-col gap-5">
 
-        <!-- 生字基本資料與雙語發音卡 -->
-        <div class="bg-white rounded-2xl shadow-sm border border-amber-200/70 p-4 sm:p-6">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+        <!-- Character Lexical & Pronunciation Card -->
+        <div class="bg-white rounded-2xl border border-stone-200/90 shadow-sm p-5 sm:p-6">
+          <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-5 border-b border-stone-100">
+            <!-- Glyph + Metadata -->
             <div class="flex items-center gap-4">
-              <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-[#FFFDF9] border-2 border-amber-300 flex items-center justify-center shadow-xs shrink-0">
-                <span id="info-big-char" class="font-kaiti text-5xl sm:text-6xl font-bold text-slate-900">張</span>
+              <div class="w-20 h-20 rounded-2xl bg-[#faf6f0] border-2 border-[#c83e37]/30 flex items-center justify-center shrink-0">
+                <span id="display-char-glyph" class="font-kai text-5xl font-bold text-stone-900">張</span>
               </div>
               <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="px-3 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm font-extrabold">
-                    部首：<span id="info-radical">弓</span>
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                  <span class="px-2.5 py-1 rounded-lg bg-red-50 text-[#c83e37] border border-red-200/80 text-xs font-bold">
+                    部首：<span id="meta-radical">弓</span>
                   </span>
-                  <span class="px-3 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs sm:text-sm font-extrabold">
-                    筆畫：<span id="info-strokes">11</span> 畫
+                  <span class="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-800 text-xs font-bold">
+                    總筆畫：<span id="meta-strokes">11</span> 畫
                   </span>
-                  <span id="info-source-tag" class="px-2.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
+                  <span id="meta-source-badge" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
                     香港小學學習字詞表
                   </span>
                 </div>
-                <div class="mt-2.5 flex items-center gap-3 flex-wrap text-sm sm:text-base">
-                  <span class="font-bold text-slate-700">粵拼：<strong id="info-jyutping" class="text-[#D9381E] font-extrabold">zoeng1</strong></span>
-                  <span class="text-stone-300">|</span>
-                  <span class="font-bold text-slate-700">普通話：<strong id="info-pinyin" class="text-indigo-700 font-extrabold">zhāng</strong></span>
+
+                <!-- Cantonese & Mandarin Audio Controls -->
+                <div class="flex flex-wrap items-center gap-2.5 mt-2">
+                  <div class="flex items-center gap-1.5 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
+                    <span class="text-xs font-bold text-stone-500">粵拼</span>
+                    <span id="meta-jyutping" class="text-sm font-extrabold text-[#c83e37]">zoeng1</span>
+                    <button
+                      id="speak-cantonese-btn"
+                      class="ml-1 px-2.5 py-1 rounded-lg bg-[#c83e37] hover:bg-[#b0322b] active:scale-95 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                      title="播放香港粵語發音"
+                    >
+                      <span>🔊</span><span>粵語</span>
+                    </button>
+                  </div>
+
+                  <div class="flex items-center gap-1.5 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
+                    <span class="text-xs font-bold text-stone-500">普通話</span>
+                    <span id="meta-pinyin" class="text-sm font-extrabold text-sky-700">zhāng</span>
+                    <button
+                      id="speak-mandarin-btn"
+                      class="ml-1 px-2.5 py-1 rounded-lg bg-sky-700 hover:bg-sky-800 active:scale-95 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                      title="播放普通話發音"
+                    >
+                      <span>🔊</span><span>普通話</span>
+                    </button>
+                  </div>
                 </div>
-                <p class="mt-1.5 text-sm text-slate-600 font-medium">
-                  字義解釋：<span id="info-english" class="text-slate-800 font-semibold">to open; sheet; surname Cheung</span>
-                </p>
+                <div id="voice-engine-status" class="text-[11px] text-stone-400 mt-1.5">語音引擎就緒（支援香港粵語及普通話）</div>
               </div>
             </div>
 
-            <!-- 粵語 / 普通話單字發音按鈕 -->
+            <!-- Dual-Mode A4 Worksheet Buttons -->
             <div class="flex sm:flex-col gap-2 shrink-0">
-              <button id="btn-speak-cantonese" type="button" class="flex-1 flex items-center justify-center gap-2 bg-[#D9381E] hover:bg-[#B92B14] active:scale-95 text-white font-bold text-sm px-4 py-3 rounded-xl shadow-sm transition-all">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                </svg>
-                <span>廣東話發音</span>
+              <button
+                id="open-ws1-btn"
+                class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <span>📄</span>
+                <span>工作紙 1：標準教學 (24九宮格)</span>
               </button>
-              <button id="btn-speak-mandarin" type="button" class="flex-1 flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-800 active:scale-95 text-white font-bold text-sm px-4 py-3 rounded-xl shadow-sm transition-all">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                </svg>
-                <span>普通話發音</span>
+              <button
+                id="open-ws2-btn"
+                class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#2b6e5c] hover:bg-[#225849] active:scale-[0.98] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <span>📝</span>
+                <span>工作紙 2：全版練字 (24大九宮格)</span>
               </button>
             </div>
           </div>
 
-          <!-- 幼兒生活化例句區 -->
-          <div class="mt-4 bg-amber-50/70 rounded-xl p-3.5 sm:p-4 border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span class="inline-block text-xs font-extrabold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md mb-1">幼兒生活例句</span>
-              <p id="info-sentence" class="text-base sm:text-lg font-bold text-slate-800 leading-relaxed">媽媽拿出一張白紙給我畫圖畫。</p>
+          <!-- English Meaning & Age-Appropriate Example Sentence (4-12 years) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+            <div class="p-3.5 rounded-xl bg-stone-50 border border-stone-200/80">
+              <div class="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">英文釋義 English Meaning</div>
+              <p id="meta-english" class="text-sm font-semibold text-stone-800">to open; to spread; sheet; surname Cheung</p>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <button id="btn-speak-sentence-hk" type="button" class="px-3 py-2 rounded-lg bg-white hover:bg-red-50 text-[#D9381E] border border-red-200 font-bold text-xs shadow-2xs active:scale-95 transition-all">
-                🔊 粵語讀句
-              </button>
-              <button id="btn-speak-sentence-md" type="button" class="px-3 py-2 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-xs shadow-2xs active:scale-95 transition-all">
-                🔊 普通話讀句
-              </button>
-            </div>
-          </div>
-        </div>
 
-        <!-- 常用詞語（嚴格兩行五列排版 + 官方／權威詞庫真實檢索 + 點擊單字聯想查字） -->
-        <div class="bg-white rounded-2xl shadow-sm border border-amber-200/70 p-4 sm:p-6">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-3.5">
-            <div>
-              <div class="flex items-center gap-2">
-                <h2 class="text-base sm:text-lg font-extrabold text-slate-800">常用詞語（兩行五列）</h2>
-                <span id="words-loading-badge" class="hidden text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 animate-pulse">
-                  正在從權威繁體詞庫檢索真實詞語...
-                </span>
+            <div class="p-3.5 rounded-xl bg-amber-50/75 border border-amber-200/80">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-amber-900">例句示範（適合 4–12 歲學童）</span>
+                <div class="flex items-center gap-2">
+                  <button id="speak-sentence-hk-btn" class="text-xs font-bold text-[#c83e37] hover:underline cursor-pointer">🔊 粵語</button>
+                  <button id="speak-sentence-tw-btn" class="text-xs font-bold text-sky-700 hover:underline cursor-pointer">🔊 普通話</button>
+                </div>
               </div>
-              <p class="text-xs text-slate-500 mt-0.5">點擊喇叭可朗讀詞語；點擊詞語中的任何中文字可直接跳轉查詢該字筆順</p>
+              <p id="meta-sentence" class="text-sm font-medium text-stone-900 leading-relaxed">張老師派給每位同學一張白紙畫圖畫。</p>
             </div>
-            <div class="flex items-center gap-1.5 text-xs font-bold">
-              <span class="text-slate-500">詞語發音：</span>
-              <button id="btn-word-lang-hk" type="button" class="px-2.5 py-1 rounded-lg bg-[#D9381E] text-white transition-all">廣東話</button>
-              <button id="btn-word-lang-md" type="button" class="px-2.5 py-1 rounded-lg bg-stone-100 text-slate-600 hover:bg-stone-200 transition-all">普通話</button>
-            </div>
-          </div>
-
-          <div id="words-grid-container" class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-            <!-- 由 JS 動態生成真實常用詞語卡片 -->
           </div>
         </div>
 
+        <!-- 10 Authentic Vocabulary Words Grid (2 rows x 5 columns, 兩行五列) -->
+        <div class="bg-white rounded-2xl border border-stone-200/90 shadow-sm p-5 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 class="text-base font-extrabold text-stone-900 flex items-center gap-2">
+                <span>📚</span>
+                <span>常用詞語（適合 4–12 歲・兩行五列共 10 個詞語）</span>
+              </h2>
+              <p class="text-xs text-stone-500 mt-0.5">點擊詞語中任何一個中文字，即可直接跳轉學習該字的筆順與詞彙</p>
+            </div>
+            <span id="vocab-loading-indicator" class="hidden text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+              正在檢索繁體詞庫...
+            </span>
+          </div>
+
+          <!-- 2 Rows x 5 Columns Grid -->
+          <div id="vocab-grid-container" class="grid grid-cols-2 sm:grid-cols-5 gap-2.5"></div>
+        </div>
       </section>
-    </main>
-  </div>
+    </div>
+  </main>
 
-  <!-- ==================== A4 練字工作紙預覽與雙模式切換互動視窗 ==================== -->
-  <div id="worksheet-preview-modal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-5">
-    <div class="bg-stone-100 rounded-2xl shadow-2xl border border-stone-300 w-full max-w-5xl max-h-[95vh] flex flex-col overflow-hidden">
-
-      <!-- 視窗頂部操作列：工作紙模式切換 + 多字設定 + 三重輸出按鈕 -->
-      <div class="bg-white px-4 sm:px-6 py-3.5 border-b border-stone-200 flex flex-col gap-3">
-        <div class="flex flex-wrap items-center justify-between gap-2.5">
-          <div class="flex items-center gap-2.5">
-            <span class="w-3 h-3 rounded-full bg-emerald-600"></span>
-            <h3 class="text-base sm:text-lg font-black text-slate-800">A4 練字工作紙預覽與匯出</h3>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2">
-            <button
-              id="btn-print-popup-window"
-              type="button"
-              class="flex items-center gap-1.5 bg-indigo-700 hover:bg-indigo-800 active:scale-95 text-white font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow-xs transition-all"
-            >
-              <span>開啟獨立視窗列印</span>
-            </button>
-
-            <button
-              id="btn-download-a4-pdf"
-              type="button"
-              class="flex items-center gap-1.5 bg-[#D9381E] hover:bg-[#B92B14] active:scale-95 text-white font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow-xs transition-all"
-            >
-              <span>直接下載高畫質 A4 PDF</span>
-            </button>
-
-            <button
-              id="btn-print-current-page"
-              type="button"
-              class="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow-xs transition-all"
-            >
-              <span>當前頁面列印</span>
-            </button>
-
-            <button
-              id="btn-close-worksheet-modal"
-              type="button"
-              class="px-3.5 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 text-slate-700 font-bold text-xs sm:text-sm transition-all"
-            >
-              關閉
-            </button>
-          </div>
-        </div>
-
-        <!-- 工作紙版面模式切換器列 -->
-        <div class="flex flex-wrap items-center justify-between gap-3 bg-amber-50/80 border border-amber-200/80 rounded-xl p-2.5">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-xs font-extrabold text-amber-900">選擇工作紙版面：</span>
-            <button
-              id="btn-ws-mode-standard"
-              type="button"
-              class="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-700 text-white shadow-xs transition-all"
-            >
-              1. 標準教學工作紙（28格九宮格＋例句＋詞語）
-            </button>
-            <button
-              id="btn-ws-mode-fullgrid"
-              type="button"
-              class="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-white text-slate-700 border border-stone-300 hover:bg-stone-50 transition-all"
-            >
-              2. 全版練字工作紙（20格特大九宮格）
-            </button>
-          </div>
-
-          <!-- 全版練字模式專用：多字分配輸入欄 -->
-          <div id="fullgrid-multichar-bar" class="hidden flex items-center gap-2">
-            <label for="ws-multichar-input" class="text-xs font-bold text-slate-700 shrink-0">練習生字（1~5字）：</label>
-            <input
-              id="ws-multichar-input"
-              type="text"
-              maxlength="5"
-              placeholder="例如：張晴濬"
-              class="w-32 px-2.5 py-1 text-sm font-bold bg-white border border-stone-300 rounded-lg focus:border-indigo-600 outline-none"
-            />
-            <button
-              id="btn-apply-multichar"
-              type="button"
-              class="px-3 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all"
-            >
-              套用生字
-            </button>
-          </div>
+  <!-- A4 Printable Worksheet Modal Preview -->
+  <div id="worksheet-modal" class="fixed inset-0 z-50 hidden bg-stone-900/75 backdrop-blur-xs flex flex-col">
+    <!-- Modal Top Controls -->
+    <div class="bg-white border-b border-stone-200 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-sm">
+      <div class="flex items-center gap-3 flex-wrap">
+        <span class="px-2.5 py-1 rounded-lg bg-red-50 text-[#c83e37] font-extrabold text-xs border border-red-200">單頁 A4 精準排版 (210mm × 297mm)</span>
+        <div class="inline-flex rounded-xl bg-stone-100 p-1">
+          <button id="modal-switch-ws1" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-900 shadow-xs transition cursor-pointer">
+            工作紙 1：標準教學工作紙 (24九宮格)
+          </button>
+          <button id="modal-switch-ws2" class="px-3 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer">
+            工作紙 2：全版練字工作紙 (24大九宮格)
+          </button>
         </div>
       </div>
 
-      <!-- 可捲動的 A4 模擬紙張預覽區 -->
-      <div class="flex-1 overflow-y-auto p-3 sm:p-8 flex justify-center bg-stone-200/80">
-        <div id="modal-a4-preview-sheet" class="bg-white shadow-xl border border-stone-300 w-full max-w-[794px] p-5 sm:p-7">
-          <!-- 由 JS 動態填入標準 A4 工作紙 HTML -->
-        </div>
+      <!-- Output & Close Buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          id="btn-standalone-print-win"
+          class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+        >
+          <span>🪟</span><span>獨立列印視窗</span>
+        </button>
+        <button
+          id="btn-download-a4-pdf"
+          class="px-3.5 py-2 rounded-xl bg-[#c83e37] hover:bg-[#b0322b] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+        >
+          <span>📥</span><span>下載高清 A4 PDF</span>
+        </button>
+        <button
+          id="btn-direct-window-print"
+          class="px-3.5 py-2 rounded-xl bg-[#2b6e5c] hover:bg-[#225849] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+        >
+          <span>🖨️</span><span>直接列印</span>
+        </button>
+        <button
+          id="close-worksheet-modal"
+          class="ml-1 px-3 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-100 text-stone-700 text-xs font-bold transition cursor-pointer"
+        >
+          ✕ 關閉
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Scaled A4 Preview Area -->
+    <div class="flex-1 overflow-auto p-4 sm:p-8 flex justify-center items-start bg-stone-800/40">
+      <div id="a4-preview-scale-wrapper" class="origin-top transition-transform">
+        <div id="printable-a4-container" class="a4-sheet"></div>
       </div>
     </div>
   </div>
 
-  <!-- 當前頁面直接列印專用容器 -->
-  <div id="print-worksheet-container"></div>
-
+  <!-- Application Script -->
   <script>
     /**
      * ============================================================================
-     * 一、香港小學學習字詞表（46 個指定常用字完整詞庫 LOCAL_DICT）
-     *     包含：張、晴、濬、學、校、愛、家、風、雨、水、山、日、月、天、人、手、
-     *           心、花、鳥、魚、車、書、畫、樂、笑、好、大、小、多、少、紅、黃、
-     *           藍、綠、春、夏、秋、冬、爸、媽、兄、弟、姊、妹、友、禮
+     * 1. BUILT-IN HONG KONG EDB CHARACTER DICTIONARY (48+ Authentic Characters)
+     *    Tailored for ages 4-12 (K1-P6 level) with 10 authentic compounds each.
      * ============================================================================
      */
     const LOCAL_DICT = {
-      '張': {
-        radical: '弓', strokes: 11, jyutping: 'zoeng1', pinyin: 'zhāng',
-        english: 'to open; sheet; surname Cheung',
-        sentence: '媽媽拿出一張白紙給我畫圖畫。',
-        words: ['一張紙', '張開', '張望', '緊張', '誇張', '主張', '張貼', '開張', '張燈結綵', '張先生']
+      "張": {
+        radical: "弓", strokes: 11, jyutping: "zoeng1", pinyin: "zhāng",
+        english: "to open; to spread; sheet; surname Cheung",
+        sentence: "張老師派給每位同學一張白紙畫圖畫。",
+        words: ["張開", "紙張", "張貼", "緊張", "誇張", "張望", "主張", "擴張", "張燈結彩", "東張西望"]
       },
-      '晴': {
-        radical: '日', strokes: 12, jyutping: 'cing4', pinyin: 'qíng',
-        english: 'clear sky; sunny; fine weather',
-        sentence: '今天天氣晴朗，太陽伯伯出來笑了。',
-        words: ['晴天', '晴朗', '雨過天晴', '放晴', '晴空', '天晴', '晴好', '晴日', '晴雨表', '萬里晴空']
+      "晴": {
+        radical: "日", strokes: 12, jyutping: "cing4", pinyin: "qíng",
+        english: "clear sky; fine weather; sunny",
+        sentence: "今天天朗氣清，陽光燦爛，是個大晴天。",
+        words: ["晴天", "晴朗", "放晴", "雨過天晴", "晴空萬里", "晴雨表", "轉晴", "晴和", "天晴", "風和日晴"]
       },
-      '濬': {
-        radical: '水', strokes: 17, jyutping: 'zeon3', pinyin: 'jùn',
-        english: 'deep; profound; to dredge',
-        sentence: '小濬每天早上都會自己刷牙洗臉。',
-        words: ['濬哲', '疏濬', '濬深', '濬明', '濬導', '濬川', '濬流', '濬源', '濬發', '濬智']
+      "濬": {
+        radical: "水", strokes: 17, jyutping: "zeon3", pinyin: "jùn",
+        english: "to dredge; deep; wise; enlightened",
+        sentence: "工程人員定期疏濬河道，保持水流暢通。",
+        words: ["疏濬", "濬哲", "濬導", "濬源", "深濬", "濬發", "濬明", "濬川", "開濬", "濬治"]
       },
-      '學': {
-        radical: '子', strokes: 16, jyutping: 'hok6', pinyin: 'xué',
-        english: 'to learn; to study; school',
-        sentence: '我每天背著書包高高興興去上學。',
-        words: ['學校', '學習', '學生', '同學', '上學', '放學', '小學', '科學', '數學', '好學']
+      "學": {
+        radical: "子", strokes: 16, jyutping: "hok6", pinyin: "xué",
+        english: "to learn; to study; school; science",
+        sentence: "我每天開開心心地背起書包上學去。",
+        words: ["學習", "學校", "學生", "同學", "小學", "放學", "上學", "科學", "學問", "勤奮好學"]
       },
-      '校': {
-        radical: '木', strokes: 10, jyutping: 'haau6', pinyin: 'xiào',
-        english: 'school; campus; to proofread',
-        sentence: '我們的校園裡有很多美麗的大樹。',
-        words: ['學校', '校園', '校長', '校車', '校服', '校門', '母校', '校友', '校規', '校運會']
+      "校": {
+        radical: "木", strokes: 10, jyutping: "haau6", pinyin: "xiào",
+        english: "school; campus; to proofread",
+        sentence: "我們的校園裡種滿了美麗的花草樹木。",
+        words: ["學校", "校園", "校長", "校服", "校車", "校規", "母校", "校對", "校舍", "全校師生"]
       },
-      '愛': {
-        radical: '心', strokes: 13, jyutping: 'oi3', pinyin: 'ài',
-        english: 'love; affection; to be fond of',
-        sentence: '爸爸和媽媽都非常疼愛我。',
-        words: ['愛心', '可愛', '愛護', '親愛', '友愛', '仁愛', '喜愛', '關愛', '熱愛', '愛惜']
+      "愛": {
+        radical: "心", strokes: 13, jyutping: "oi3", pinyin: "ài",
+        english: "to love; affection; to cherish",
+        sentence: "爸爸媽媽非常疼愛我，我也愛我的家人。",
+        words: ["愛心", "可愛", "友愛", "愛護", "親愛", "關愛", "熱愛", "仁愛", "愛惜", "相親相愛"]
       },
-      '家': {
-        radical: '宀', strokes: 10, jyutping: 'gaa1', pinyin: 'jiā',
-        english: 'home; family; household',
-        sentence: '放學後，我最喜歡回到溫暖的家。',
-        words: ['家人', '家庭', '回家', '大家', '國家', '家鄉', '家長', '畫家', '科學家', '一家人']
+      "家": {
+        radical: "宀", strokes: 10, jyutping: "gaa1", pinyin: "jiā",
+        english: "home; family; household; specialist",
+        sentence: "放學回家後，我會先洗手再溫習功課。",
+        words: ["家庭", "家人", "回家", "大家", "國家", "家鄉", "畫家", "作家", "家務", "溫暖的家"]
       },
-      '風': {
-        radical: '風', strokes: 9, jyutping: 'fung1', pinyin: 'fēng',
-        english: 'wind; breeze; style',
-        sentence: '微風輕輕吹過，樹葉沙沙作響。',
-        words: ['大風', '微風', '春風', '風箏', '風景', '颱風', '海風', '北風', '風雨', '風和日麗']
+      "天": {
+        radical: "大", strokes: 4, jyutping: "tin1", pinyin: "tiān",
+        english: "sky; heaven; day; weather",
+        sentence: "藍藍的天空上飄著幾朵雪白的雲。",
+        words: ["天空", "今天", "明天", "昨天", "天氣", "春天", "夏天", "秋天", "冬天", "天真可愛"]
       },
-      '雨': {
-        radical: '雨', strokes: 8, jyutping: 'jyu5', pinyin: 'yǔ',
-        english: 'rain',
-        sentence: '下雨天出門要記得帶雨傘和穿雨衣。',
-        words: ['下雨', '雨水', '大雨', '小雨', '雨傘', '雨衣', '雷雨', '暴雨', '風雨', '雨過天晴']
+      "地": {
+        radical: "土", strokes: 6, jyutping: "dei6", pinyin: "dì",
+        english: "earth; ground; land; place",
+        sentence: "春雨過後，草地上長出了嫩綠的小草。",
+        words: ["地方", "土地", "草地", "地球", "地圖", "地下", "地板", "田地", "天地", "腳踏實地"]
       },
-      '水': {
-        radical: '水', strokes: 4, jyutping: 'seoi2', pinyin: 'shuǐ',
-        english: 'water; liquid; river',
-        sentence: '運動完之後要記得多喝溫開水。',
-        words: ['喝水', '水果', '河水', '海水', '雨水', '開水', '水杯', '山水', '汽水', '水落石出']
+      "人": {
+        radical: "人", strokes: 2, jyutping: "jan4", pinyin: "rén",
+        english: "person; people; human being",
+        sentence: "我們要學會做一個有禮貌、樂於助人的好孩子。",
+        words: ["人們", "好人", "大人", "家人", "病人", "工人", "商人", "主人", "助人", "人人有責"]
       },
-      '山': {
-        radical: '山', strokes: 3, jyutping: 'saan1', pinyin: 'shān',
-        english: 'mountain; hill',
-        sentence: '假日我們一家人去太平山頂看風景。',
-        words: ['高山', '山頂', '山坡', '山水', '爬山', '火山', '山谷', '山洞', '青山', '人山人海']
+      "山": {
+        radical: "山", strokes: 3, jyutping: "saan1", pinyin: "shān",
+        english: "mountain; hill; peak",
+        sentence: "星期天，爸爸帶我去太平山頂欣賞風景。",
+        words: ["高山", "山頂", "山坡", "山水", "爬山", "山谷", "火山", "山洞", "山林", "山明水秀"]
       },
-      '日': {
-        radical: '日', strokes: 4, jyutping: 'jat6', pinyin: 'rì',
-        english: 'sun; day; date',
-        sentence: '每天早上太陽從東方升起。',
-        words: ['日子', '今日', '明日', '生日', '日記', '日出', '日落', '節日', '日光', '風和日麗']
+      "水": {
+        radical: "水", strokes: 4, jyutping: "seoi2", pinyin: "shuǐ",
+        english: "water; river; liquid",
+        sentence: "多喝清水和多吃水果對身體很有益處。",
+        words: ["清水", "水果", "河水", "海水", "雨水", "喝水", "水杯", "汽水", "山明水秀", "飲水思源"]
       },
-      '月': {
-        radical: '月', strokes: 4, jyutping: 'jyut6', pinyin: 'yuè',
-        english: 'moon; month',
-        sentence: '中秋節的晚上，月亮又大又圓。',
-        words: ['月亮', '月餅', '一月', '歲月', '月光', '明月', '新月', '滿月', '月份', '日積月累']
+      "風": {
+        radical: "風", strokes: 9, jyutping: "fung1", pinyin: "fēng",
+        english: "wind; breeze; style; custom",
+        sentence: "秋天來了，涼爽的秋風輕輕吹過樹梢。",
+        words: ["微風", "大風", "風箏", "風景", "秋風", "春風", "風雨", "風鈴", "和風", "風和日麗"]
       },
-      '天': {
-        radical: '大', strokes: 4, jyutping: 'tin1', pinyin: 'tiān',
-        english: 'sky; heaven; day; weather',
-        sentence: '藍藍的天空上飄著幾朵白雲。',
-        words: ['天空', '今天', '明天', '昨天', '天氣', '晴天', '雨天', '春天', '白天', '天真可愛']
+      "雨": {
+        radical: "雨", strokes: 8, jyutping: "jyu5", pinyin: "yǔ",
+        english: "rain; rainy",
+        sentence: "下雨天出門時，記得要帶雨傘和穿雨衣。",
+        words: ["下雨", "雨水", "雨傘", "雨衣", "大雨", "小雨", "雷雨", "風雨", "雨滴", "春風化雨"]
       },
-      '人': {
-        radical: '人', strokes: 2, jyutping: 'jan4', pinyin: 'rén',
-        english: 'person; human; people',
-        sentence: '我們要學會做一個有禮貌的好人。',
-        words: ['大人', '好人', '人們', '家人', '工人', '主人', '客人', '人類', '人生', '助人為樂']
+      "花": {
+        radical: "艸", strokes: 8, jyutping: "faa1", pinyin: "huā",
+        english: "flower; blossom; pattern",
+        sentence: "春天到了，公園裡的鮮花都開得十分燦爛。",
+        words: ["花朵", "鮮花", "花園", "開花", "花草", "紅花", "花瓶", "棉花", "雪花", "鳥語花香"]
       },
-      '手': {
-        radical: '手', strokes: 4, jyutping: 'sau2', pinyin: 'shǒu',
-        english: 'hand',
-        sentence: '吃飯前一定要用肥皂把雙手洗乾淨。',
-        words: ['小手', '雙手', '拍手', '洗手', '手工', '手指', '左手', '右手', '握手', '心靈手巧']
+      "草": {
+        radical: "艸", strokes: 10, jyutping: "cou2", pinyin: "cǎo",
+        english: "grass; straw; herb",
+        sentence: "小兔子在綠油油的草地上開心地跳來跳去。",
+        words: ["小草", "草地", "青草", "花草", "草原", "稻草", "草帽", "水草", "雜草", "綠草如茵"]
       },
-      '心': {
-        radical: '心', strokes: 4, jyutping: 'sam1', pinyin: 'xīn',
-        english: 'heart; mind; center',
-        sentence: '幫助別人讓我心裡感到非常溫暖。',
-        words: ['開心', '愛心', '小心', '用心', '細心', '放心', '中心', '點心', '專心', '全心全意']
+      "書": {
+        radical: "曰", strokes: 10, jyutping: "syu1", pinyin: "shū",
+        english: "book; letter; to write",
+        sentence: "我喜歡在圖書館裡安靜地閱讀故事書。",
+        words: ["書本", "書包", "看書", "讀書", "圖書館", "故事書", "書桌", "書法", "教科書", "博覽群書"]
       },
-      '花': {
-        radical: '艸', strokes: 7, jyutping: 'faa1', pinyin: 'huā',
-        english: 'flower; blossom',
-        sentence: '花園裡的紅花和黃花開得真美麗。',
-        words: ['花朵', '花園', '紅花', '鮮花', '開花', '花草', '雪花', '浪花', '花生', '百花齊放']
+      "畫": {
+        radical: "田", strokes: 12, jyutping: "waa6", pinyin: "huà",
+        english: "to draw; to paint; painting; picture",
+        sentence: "妹妹用彩色筆畫了一幅美麗的風景畫。",
+        words: ["圖畫", "畫畫", "畫家", "畫筆", "壁畫", "漫畫", "動畫", "水彩畫", "詩情畫意", "畫龍點睛"]
       },
-      '鳥': {
-        radical: '鳥', strokes: 11, jyutping: 'niu5', pinyin: 'niǎo',
-        english: 'bird',
-        sentence: '清晨樹枝上的小鳥在吱吱喳喳唱歌。',
-        words: ['小鳥', '飛鳥', '鳥兒', '鳥巢', '水鳥', '海鳥', '候鳥', '益鳥', '百鳥爭鳴', '鳥語花香']
+      "快": {
+        radical: "心", strokes: 7, jyutping: "faai3", pinyin: "kuài",
+        english: "happy; fast; quick; soon",
+        sentence: "祝你生日快樂，每天都健康快樂地成長！",
+        words: ["快樂", "快速", "快車", "趕快", "愉快", "歡快", "快慢", "痛快", "飛快", "拍手稱快"]
       },
-      '魚': {
-        radical: '魚', strokes: 11, jyutping: 'jyu4', pinyin: 'yú',
-        english: 'fish',
-        sentence: '池塘裡的小金魚在水裡自由自在地游。',
-        words: ['金魚', '小魚', '魚兒', '釣魚', '木魚', '鯨魚', '鯊魚', '魚缸', '魚鱗', '如魚得水']
+      "樂": {
+        radical: "木", strokes: 15, jyutping: "lok6", pinyin: "lè",
+        english: "happy; joyful; music (ngok6)",
+        sentence: "和好朋友一起玩遊戲是一件很快樂的事。",
+        words: ["快樂", "歡樂", "樂園", "樂趣", "樂意", "樂觀", "音樂", "樂器", "助人為樂", "安居樂業"]
       },
-      '車': {
-        radical: '車', strokes: 7, jyutping: 'ce1', pinyin: 'chē',
-        english: 'vehicle; car; bus',
-        sentence: '過馬路時要看清交通燈，小心來往車輛。',
-        words: ['汽車', '火車', '巴士車', '校車', '單車', '車輪', '車站', '上車', '下車', '車水馬龍']
+      "朋": {
+        radical: "月", strokes: 8, jyutping: "pang4", pinyin: "péng",
+        english: "friend; companion",
+        sentence: "小明是我在學校裡最要好的朋友。",
+        words: ["朋友", "小朋友", "好朋友", "親朋", "良朋", "賓朋", "朋輩", "高朋滿座", "親朋好友", "良師益友"]
       },
-      '書': {
-        radical: '曰', strokes: 10, jyutping: 'syu1', pinyin: 'shū',
-        english: 'book; letter; calligraphy',
-        sentence: '我每天睡覺前都會看一本故事書。',
-        words: ['書包', '看書', '讀書', '書本', '圖書', '故事書', '書桌', '書法', '寫書', '博覽群書']
+      "友": {
+        radical: "又", strokes: 4, jyutping: "jau5", pinyin: "yǒu",
+        english: "friend; friendly; companionship",
+        sentence: "同學之間應該互相幫助，建立深厚的友誼。",
+        words: ["朋友", "友愛", "友好", "友善", "友誼", "校友", "隊友", "網友", "友情", "親密無間"]
       },
-      '畫': {
-        radical: '田', strokes: 12, jyutping: 'waa2', pinyin: 'huà',
-        english: 'painting; picture; to draw',
-        sentence: '我用彩色蠟筆畫了一幅美麗的風景畫。',
-        words: ['畫畫', '圖畫', '畫家', '畫筆', '風景畫', '水彩畫', '動畫', '漫畫', '畫展', '詩情畫意']
+      "春": {
+        radical: "日", strokes: 9, jyutping: "ceon1", pinyin: "chūn",
+        english: "spring season; youthful",
+        sentence: "春天萬物復甦，小鳥在樹枝上快樂地唱歌。",
+        words: ["春天", "春季", "春風", "春雨", "春節", "新春", "青春", "春聯", "春暖花開", "春光明媚"]
       },
-      '樂': {
-        radical: '木', strokes: 15, jyutping: 'lok6', pinyin: 'lè / yuè',
-        english: 'happy; joyful; music',
-        sentence: '今天是我的生日，大家都祝我生日快樂！',
-        words: ['快樂', '音樂', '歡樂', '樂園', '樂趣', '可樂', '樂器', '樂隊', '喜樂', '助人為樂']
+      "夏": {
+        radical: "夂", strokes: 10, jyutping: "haa6", pinyin: "xià",
+        english: "summer season",
+        sentence: "夏天炎熱的時候，我最喜歡去海灘游泳。",
+        words: ["夏天", "夏季", "夏日", "盛夏", "初夏", "立夏", "夏令營", "夏裝", "春夏秋冬", "炎炎夏日"]
       },
-      '笑': {
-        radical: '竹', strokes: 10, jyutping: 'siu3', pinyin: 'xiào',
-        english: 'to laugh; to smile',
-        sentence: '爺爺講了一個有趣的笑話，逗得大家哈哈笑。',
-        words: ['開心笑', '微笑', '笑容', '笑聲', '笑話', '大笑', '歡笑', '笑臉', '愛笑', '眉開眼笑']
+      "秋": {
+        radical: "禾", strokes: 9, jyutping: "cau1", pinyin: "qiū",
+        english: "autumn; fall; harvest time",
+        sentence: "秋天是郊遊和放風箏的好季節。",
+        words: ["秋天", "秋季", "秋風", "中秋節", "秋千", "秋色", "金秋", "初秋", "秋高氣爽", "一葉知秋"]
       },
-      '好': {
-        radical: '女', strokes: 6, jyutping: 'hou2', pinyin: 'hǎo',
-        english: 'good; well; friendly; nice',
-        sentence: '我們要互相幫助，做一對好朋友。',
-        words: ['好人', '好事', '好朋友', '好吃', '好看', '好聽', '好學', '美好', '問好', '好上加好']
+      "冬": {
+        radical: "冫", strokes: 5, jyutping: "dung1", pinyin: "dōng",
+        english: "winter season",
+        sentence: "冬天到了，我們要穿上厚厚的羽絨外套保暖。",
+        words: ["冬天", "冬季", "冬日", "寒冬", "冬至", "立冬", "過冬", "冬眠", "冬瓜", "寒冬臘月"]
       },
-      '大': {
-        radical: '大', strokes: 3, jyutping: 'daai6', pinyin: 'dà',
-        english: 'big; large; great',
-        sentence: '動物園裡的大象有長長的鼻子。',
-        words: ['大人', '大家', '大小', '大象', '大海', '大雨', '長大', '大學', '大門', '光明正大']
+      "日": {
+        radical: "日", strokes: 4, jyutping: "jat6", pinyin: "rì",
+        english: "sun; day; date",
+        sentence: "清晨時分，紅紅的太陽從東方慢慢升起。",
+        words: ["日子", "生日", "節日", "日記", "今日", "明日", "平日", "日出", "日落", "風和日麗"]
       },
-      '小': {
-        radical: '小', strokes: 3, jyutping: 'siu2', pinyin: 'xiǎo',
-        english: 'small; little; young',
-        sentence: '草地上有一隻可愛的小白兔在跳。',
-        words: ['小朋友', '小學', '小鳥', '小心', '大小', '小狗', '小貓', '小河', '小時', '小巧玲瓏']
+      "月": {
+        radical: "月", strokes: 4, jyutping: "jyut6", pinyin: "yuè",
+        english: "moon; month",
+        sentence: "中秋節的晚上，月亮又大又圓，像一個銀盤。",
+        words: ["月亮", "月光", "月份", "一月", "八月", "月餅", "歲月", "新月", "滿月", "花好月圓"]
       },
-      '多': {
-        radical: '夕', strokes: 6, jyutping: 'do1', pinyin: 'duō',
-        english: 'many; much; more',
-        sentence: '公園裡有很多小朋友在開心地玩耍。',
-        words: ['很多', '多少', '多年', '大多', '多謝', '多元', '多彩', '眾多', '許多', '多姿多彩']
+      "星": {
+        radical: "日", strokes: 9, jyutping: "sing1", pinyin: "xīng",
+        english: "star; planet; week",
+        sentence: "晴朗的夜晚，天空中有許多閃閃發光的星星。",
+        words: ["星星", "星期", "星空", "火星", "衛星", "行星", "流星", "明星", "星光", "眾星拱月"]
       },
-      '少': {
-        radical: '小', strokes: 4, jyutping: 'siu2 / siu3', pinyin: 'shǎo / shào',
-        english: 'few; little; young',
-        sentence: '我們要珍惜水資源，不可浪費一滴少水。',
-        words: ['多少', '少年', '少女', '很少', '減少', '缺少', '少數', '老少', '年少', '積少成多']
+      "雲": {
+        radical: "雨", strokes: 12, jyutping: "wan4", pinyin: "yún",
+        english: "cloud",
+        sentence: "天上的白雲有的像綿羊，有的像棉花糖。",
+        words: ["白雲", "雲朵", "烏雲", "雲彩", "風雲", "煙雲", "雲層", "騰雲駕霧", "晴空無雲", "行雲流水"]
       },
-      '紅': {
-        radical: '糸', strokes: 9, jyutping: 'hung4', pinyin: 'hóng',
-        english: 'red; crimson',
-        sentence: '蘋果又大又紅，吃起來香甜可口。',
-        words: ['紅色', '紅花', '火紅', '粉紅', '紅豆', '紅綠燈', '紅旗', '紅日', '紅包', '萬紫千紅']
+      "鳥": {
+        radical: "鳥", strokes: 11, jyutping: "niu5", pinyin: "niǎo",
+        english: "bird",
+        sentence: "清晨，樹林裡傳來小鳥清脆悅耳的叫聲。",
+        words: ["小鳥", "飛鳥", "鳥兒", "鳥巢", "水鳥", "候鳥", "孔雀", "百鳥爭鳴", "鳥語花香", "小鳥依人"]
       },
-      '黃': {
-        radical: '黃', strokes: 12, jyutping: 'wong4', pinyin: 'huáng',
-        english: 'yellow; surname Wong',
-        sentence: '秋天到了，樹葉變成了金黃色。',
-        words: ['黃色', '金黃', '黃瓜', '蛋黃', '黃河', '黃昏', '黃牛', '菊黃', '土黃', '黃澄澄']
+      "魚": {
+        radical: "魚", strokes: 11, jyutping: "jyu4", pinyin: "yú",
+        english: "fish",
+        sentence: "清澈的池塘裡有幾條紅色的小金魚在游水。",
+        words: ["金魚", "小魚", "魚兒", "釣魚", "魚塘", "鯊魚", "鯨魚", "魚鱗", "如魚得水", "年年有餘"]
       },
-      '藍': {
-        radical: '艸', strokes: 17, jyutping: 'laam4', pinyin: 'lán',
-        english: 'blue; indigo',
-        sentence: '晴朗的天空呈現出清澈的蔚藍色。',
-        words: ['藍色', '藍天', '深藍', '淺藍', '蔚藍', '藍海', '籃球藍', '寶藍', '藍圖', '青出於藍']
+      "手": {
+        radical: "手", strokes: 4, jyutping: "sau2", pinyin: "shǒu",
+        english: "hand; skill",
+        sentence: "飯前便後要用肥皂把雙手洗乾淨。",
+        words: ["雙手", "洗手", "手指", "手心", "手帕", "手工", "拍手", "幫手", "手足情深", "心靈手巧"]
       },
-      '綠': {
-        radical: '糸', strokes: 14, jyutping: 'luk6', pinyin: 'lǜ',
-        english: 'green',
-        sentence: '春天的大草原一片翠綠，充滿生機。',
-        words: ['綠色', '綠葉', '綠草', '翠綠', '綠樹', '綠豆', '綠茶', '綠化', '紅綠燈', '綠草如茵']
+      "足": {
+        radical: "足", strokes: 7, jyutping: "zuk1", pinyin: "zú",
+        english: "foot; leg; sufficient",
+        sentence: "同學們在操場上開心地踢足球。",
+        words: ["足球", "手足", "充足", "滿足", "遠足", "十足", "立足", "知足", "微不足道", "豐衣足食"]
       },
-      '春': {
-        radical: '日', strokes: 9, jyutping: 'ceon1', pinyin: 'chūn',
-        english: 'spring; springtime',
-        sentence: '春天來了，百花齊放，燕子也飛回來了。',
-        words: ['春天', '春風', '春雨', '春日', '春節', '新春', '春季', '立春', '春色', '春暖花開']
+      "耳": {
+        radical: "耳", strokes: 6, jyutping: "ji5", pinyin: "ěr",
+        english: "ear",
+        sentence: "小兔子的耳朵長長的，聽覺非常靈敏。",
+        words: ["耳朵", "耳機", "木耳", "順風耳", "耳目", "耳環", "交頭接耳", "耳聰目明", "掩耳盜鈴", "言猶在耳"]
       },
-      '夏': {
-        radical: '夊', strokes: 10, jyutping: 'haa6', pinyin: 'xià',
-        english: 'summer',
-        sentence: '夏天陽光燦爛，我們喜歡去海灘游泳。',
-        words: ['夏天', '夏日', '夏季', '夏夜', '立夏', '盛夏', '初夏', '夏令營', '華夏', '冬暖夏涼']
+      "目": {
+        radical: "目", strokes: 5, jyutping: "muk6", pinyin: "mù",
+        english: "eye; item; catalog",
+        sentence: "閱讀時保持適當距離，才能好好保護雙目。",
+        words: ["目光", "目標", "題目", "目錄", "節目", "科目", "雙目", "面目", "耳聰目明", "一目了然"]
       },
-      '秋': {
-        radical: '禾', strokes: 9, jyutping: 'cau1', pinyin: 'qiū',
-        english: 'autumn; fall',
-        sentence: '秋天天氣涼爽，正是登高郊遊的好時節。',
-        words: ['秋天', '中秋', '秋風', '秋葉', '秋日', '秋季', '秋收', '立秋', '秋千', '秋高氣爽']
+      "口": {
+        radical: "口", strokes: 3, jyutping: "hau2", pinyin: "kǒu",
+        english: "mouth; opening; entrance",
+        sentence: "我們要早晚刷牙，保持口腔清潔健康。",
+        words: ["門口", "入口", "出口", "口罩", "口味", "口渴", "人口", "可口", "異口同聲", "心直口快"]
       },
-      '冬': {
-        radical: '冫', strokes: 5, jyutping: 'dung1', pinyin: 'dōng',
-        english: 'winter',
-        sentence: '冬天寒風吹來，出門要穿上厚厚的棉衣。',
-        words: ['冬天', '冬日', '冬季', '冬至', '寒冬', '立冬', '過冬', '冬瓜', '冬眠', '冬暖夏涼']
+      "心": {
+        radical: "心", strokes: 4, jyutping: "sam1", pinyin: "xīn",
+        english: "heart; mind; center",
+        sentence: "做功課時要專心一致，不能三心兩意。",
+        words: ["開心", "愛心", "專心", "細心", "小心", "關心", "信心", "點心", "一心一意", "得心應手"]
       },
-      '爸': {
-        radical: '父', strokes: 8, jyutping: 'baa1', pinyin: 'bà',
-        english: 'father; dad; papa',
-        sentence: '週末爸爸帶我去公園騎單車和放風箏。',
-        words: ['爸爸', '阿爸', '爸媽', '老爸', '好爸爸', '爹爸', '父爸', '乾爸', '伯爸', '爸媽愛我']
+      "大": {
+        radical: "大", strokes: 3, jyutping: "daai6", pinyin: "dà",
+        english: "big; large; great; adult",
+        sentence: "大象的身體非常龐大，鼻子長長的。",
+        words: ["大家", "大人", "大小", "大象", "大海", "大山", "大雨", "長大", "光明正大", "大公無私"]
       },
-      '媽': {
-        radical: '女', strokes: 13, jyutping: 'maa1', pinyin: 'mā',
-        english: 'mother; mom; mama',
-        sentence: '媽媽每天早上為我準備營養豐富的早餐。',
-        words: ['媽媽', '阿媽', '爸媽', '姑媽', '姨媽', '好媽媽', '奶媽', '舅媽', '大媽', '媽媽辛苦了']
+      "小": {
+        radical: "小", strokes: 3, jyutping: "siu2", pinyin: "xiǎo",
+        english: "small; little; young",
+        sentence: "過馬路時要小心觀察左右兩旁的車輛。",
+        words: ["小學", "小朋友", "小心", "小鳥", "小草", "小狗", "小貓", "大小", "從小到大", "小巧玲瓏"]
       },
-      '兄': {
-        radical: '儿', strokes: 5, jyutping: 'hing1', pinyin: 'xiōng',
-        english: 'elder brother',
-        sentence: '哥哥是我的好兄長，經常教我做功課。',
-        words: ['兄弟', '兄長', '表兄', '堂兄', '師兄', '仁兄', '老兄', '學兄', '胞兄', '兄友弟恭']
+      "多": {
+        radical: "夕", strokes: 6, jyutping: "do1", pinyin: "duō",
+        english: "many; much; more",
+        sentence: "圖書館裡的藏書種類繁多，應有盡有。",
+        words: ["多少", "很多", "許多", "眾多", "多謝", "多餘", "多年", "多才多藝", "多姿多彩", "多多益善"]
       },
-      '弟': {
-        radical: '弓', strokes: 7, jyutping: 'dai6', pinyin: 'dì',
-        english: 'younger brother',
-        sentence: '我會好好照顧年幼的弟弟，和他分享玩具。',
-        words: ['弟弟', '兄弟', '表弟', '堂弟', '小弟', '徒弟', '子弟', '弟子', '師弟', '兄友弟恭']
+      "少": {
+        radical: "小", strokes: 4, jyutping: "siu2", pinyin: "shǎo",
+        english: "few; little; young (siu3)",
+        sentence: "少吃油炸食物，多吃蔬菜水果更健康。",
+        words: ["多少", "很少", "少年", "少女", "減少", "缺少", "少數", "老少", "積少成多", "少見多怪"]
       },
-      '姊': {
-        radical: '女', strokes: 8, jyutping: 'zi2', pinyin: 'zǐ',
-        english: 'elder sister',
-        sentence: '姊姊每天牽著我的手一起走路上學。',
-        words: ['姊姊', '姊妹', '表姊', '堂姊', '大姊', '二姊', '學姊', '師姊', '胞姊', '姊妹情深']
+      "上": {
+        radical: "一", strokes: 3, jyutping: "soeng6", pinyin: "shàng",
+        english: "up; above; on; to go to",
+        sentence: "每天早上七點半，我準時到達學校上課。",
+        words: ["上學", "上課", "早上", "上午", "上面", "山上", "向上", "馬上", "蒸蒸日上", "錦上添花"]
       },
-      '妹': {
-        radical: '女', strokes: 8, jyutping: 'mui6', pinyin: 'mèi',
-        english: 'younger sister',
-        sentence: '可愛的小妹妹最喜歡聽我講睡前故事。',
-        words: ['妹妹', '姊妹', '表妹', '堂妹', '小妹', '師妹', '學妹', '弟妹', '胞妹', '姊妹花']
+      "下": {
+        radical: "一", strokes: 3, jyutping: "haa6", pinyin: "xià",
+        english: "down; below; under; next",
+        sentence: "下午放學後，我和同學一起在操場打球。",
+        words: ["下午", "下雨", "下面", "地下", "下課", "樹下", "樓下", "向下", "名聞天下", "不相上下"]
       },
-      '友': {
-        radical: '又', strokes: 4, jyutping: 'jau5', pinyin: 'yǒu',
-        english: 'friend; friendly; companionship',
-        sentence: '在學校裡，我認識了許多友善的好朋友。',
-        words: ['朋友', '好朋友', '友愛', '友善', '友好', '校友', '隊友', '親友', '網友', '良師益友']
+      "中": {
+        radical: "丨", strokes: 4, jyutping: "zung1", pinyin: "zhōng",
+        english: "middle; center; China",
+        sentence: "中午時分，我們在學校飯堂享用美味的午餐。",
+        words: ["中國", "中文", "中午", "中間", "中心", "中學", "空中", "心中", "雪中送炭", "百發百中"]
       },
-      '禮': {
-        radical: '示', strokes: 18, jyutping: 'lai5', pinyin: 'lǐ',
-        english: 'politeness; manners; gift; ceremony',
-        sentence: '見到老師和長輩時，我們要主動問好有禮貌。',
-        words: ['禮貌', '禮物', '敬禮', '行禮', '有禮', '禮堂', '禮節', '典禮', '婚禮', '彬彬有禮']
+      "國": {
+        radical: "囗", strokes: 11, jyutping: "gwok3", pinyin: "guó",
+        english: "country; nation; state",
+        sentence: "我們要熱愛祖國，努力學習將來貢獻社會。",
+        words: ["中國", "國家", "國旗", "國歌", "國慶", "祖國", "外國", "國際", "國泰民安", "保家衛國"]
+      },
+      "港": {
+        radical: "水", strokes: 12, jyutping: "gong2", pinyin: "gǎng",
+        english: "harbor; port; Hong Kong",
+        sentence: "香港的維多利亞港夜景舉世聞名，十分璀璨。",
+        words: ["香港", "港口", "海港", "港灣", "漁港", "維多利亞港", "港幣", "港澳", "港島", "港鐵"]
+      },
+      "香": {
+        radical: "香", strokes: 9, jyutping: "hoeng1", pinyin: "xiāng",
+        english: "fragrant; sweet-smelling; Hong Kong",
+        sentence: "媽媽煮的飯菜香氣撲鼻，讓我胃口大開。",
+        words: ["香港", "香氣", "香水", "花香", "清香", "香甜", "香濃", "香味", "鳥語花香", "古色古香"]
       }
     };
 
-    const PRESET_CHAR_LIST = Object.keys(LOCAL_DICT);
-    const STROKE_CACHE = {};
-    const REMOTE_LEXICAL_CACHE = {};
+    const QUICK_PILLS = [
+      "張", "晴", "濬", "學", "校", "愛", "家", "天", "地", "人",
+      "山", "水", "風", "雨", "花", "草", "書", "畫", "快樂", "朋友", "香港"
+    ];
 
     /**
      * ============================================================================
-     * 二、全域狀態與音訊安全池
+     * 2. APPLICATION STATE & DUAL-CDN STROKE DATA LOADER
      * ============================================================================
      */
-    const appState = {
-      currentChar: '張',
-      queryChars: ['張'],
-      gridType: 'nine', // 'nine' | 'four' | 'blank'
-      showOutline: true,
-      speedLevel: 'normal', // 'slow' | 'normal' | 'fast'
+    const state = {
+      chars: ["張"],
+      activeIndex: 0,
+      gridMode: "jiugong",        // 'jiugong' | 'tianzige' | 'blank'
+      speed: 1.1,
       writer: null,
-      charData: null,
+      charDataCache: {},
+      lexicalCache: {},
+      currentStrokeStep: 0,
       totalStrokes: 0,
-      stepStrokeIndex: 0,
-      isQuizActive: false,
-      isAnimating: false,
-      isPaused: false,
-      wordSpeakLang: 'zh-HK', // 'zh-HK' | 'zh-CN'
-      loadToken: 0,
-      hkVoice: null,
-      mandarinVoice: null,
-      voicesLoaded: false,
-      worksheetMode: 'standard', // 'standard' | 'fullgrid'
-      fullGridChars: ['張']
+      isPlaying: false,
+      isQuizMode: false,
+      showOutline: true,
+      activeWorksheetMode: "ws1", // 'ws1' | 'ws2'
+      ws2MultiMode: false
     };
 
-    window.__ttsUtterancePool = [];
-    window.__ttsAudioPlayer = null;
-    window.__audioCtx = null;
+    async function fetchTraditionalCharData(char) {
+      if (state.charDataCache[char]) return state.charDataCache[char];
 
-    function unlockAudioOnFirstGesture() {
-      try {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass && !window.__audioCtx) {
-          window.__audioCtx = new AudioContextClass();
+      const encoded = encodeURIComponent(char);
+      const urls = [
+        `https://cdn.jsdelivr.net/npm/hanzi-writer-data-zh-tw@0.1/${encoded}.json`,
+        `https://unpkg.com/hanzi-writer-data-zh-tw@0.1/${encoded}.json`,
+        `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encoded}.json`
+      ];
+
+      for (const url of urls) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.strokes) && data.strokes.length > 0) {
+              state.charDataCache[char] = data;
+              return data;
+            }
+          }
+        } catch (e) {
+          // Try next fallback CDN
         }
-        if (window.__audioCtx && window.__audioCtx.state === 'suspended') {
-          window.__audioCtx.resume();
-        }
-        if ('speechSynthesis' in window && window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-      } catch (e) {}
+      }
+      throw new Error(`暫時無法載入「${char}」的繁體筆順向量資料`);
     }
-    ['pointerdown', 'touchstart', 'keydown'].forEach(evt => {
-      window.addEventListener(evt, unlockAudioOnFirstGesture, { once: true, passive: true });
-    });
 
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toast-container');
-      if (!container) return;
+    /**
+     * ============================================================================
+     * 3. LIVE WIKTIONARY API LEXICAL LOOKUP (Suitable for Ages 4-12, 2-4 Chars)
+     * ============================================================================
+     */
+    function isAgeAppropriateCompound(word, targetChar) {
+      if (!/^[\u4e00-\u9fff]{2,4}$/.test(word)) return false;
+      if (!word.includes(targetChar)) return false;
+      // Filter out archaic / inappropriate characters for ages 4-12
+      if (/[死殺鬼屍淫毒賭賊妓妖魔]/.test(word)) return false;
+      return true;
+    }
 
-      const colors = {
-        info: 'bg-slate-800 text-white border-slate-700',
-        success: 'bg-emerald-700 text-white border-emerald-600',
-        warn: 'bg-amber-600 text-white border-amber-500',
-        error: 'bg-[#D9381E] text-white border-red-700'
+    async function resolveLexicalEntry(char, strokeCount = 0) {
+      if (LOCAL_DICT[char]) {
+        return { ...LOCAL_DICT[char], isOfficialHK: true };
+      }
+      if (state.lexicalCache[char]) {
+        return state.lexicalCache[char];
+      }
+
+      const indicator = document.getElementById("vocab-loading-indicator");
+      if (indicator) indicator.classList.remove("hidden");
+
+      let radical = "部首檢索";
+      let jyutping = "—";
+      let pinyin = "—";
+      let english = "Traditional Chinese character";
+      let authenticWords = [];
+
+      try {
+        const [enRes, zhSearchRes] = await Promise.allSettled([
+          fetch(`https://en.wiktionary.org/w/api.php?action=parse&page=${encodeURIComponent(char)}&prop=wikitext&format=json&origin=*`),
+          fetch(`https://zh.wiktionary.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(char)}&srlimit=30&format=json&origin=*`)
+        ]);
+
+        if (enRes.status === "fulfilled" && enRes.value.ok) {
+          const enJson = await enRes.value.json();
+          const wt = enJson?.parse?.wikitext?.["*"] || "";
+
+          const jyutMatch = wt.match(/\|yue=([a-z0-9\s,/-]+)/i);
+          if (jyutMatch) jyutping = jyutMatch[1].split(/[,/]/)[0].trim();
+
+          const pinMatch = wt.match(/\|m=([a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ0-9\s,/-]+)/i);
+          if (pinMatch) pinyin = pinMatch[1].split(/[,/]/)[0].trim();
+
+          const radMatch = wt.match(/\{\{Han char\|rn=\d+\|rad=([^|\}]+)/);
+          if (radMatch) radical = radMatch[1].trim();
+
+          const defLines = wt.split("\n").filter(l => /^#\s+[^:*#]/.test(l));
+          if (defLines.length > 0) {
+            const cleanDefs = defLines
+              .slice(0, 3)
+              .map(l => l.replace(/^#\s+/, "").replace(/\{\{[^}]+\}\}/g, "").replace(/\[\[(?:[^|\]]+\|)?([^\]]+)\]\]/g, "$1").trim())
+              .filter(Boolean);
+            if (cleanDefs.length > 0) english = cleanDefs.join("; ");
+          }
+
+          const derMatch = wt.match(/\{\{zh-der\|([^}]+)\}\}/);
+          if (derMatch) {
+            const compounds = derMatch[1]
+              .split("|")
+              .map(item => item.split(":")[0].replace(/\[|\]/g, "").trim())
+              .filter(w => isAgeAppropriateCompound(w, char));
+            authenticWords.push(...compounds);
+          }
+        }
+
+        if (zhSearchRes.status === "fulfilled" && zhSearchRes.value.ok) {
+          const zhJson = await zhSearchRes.value.json();
+          const hits = zhJson?.query?.search || [];
+          for (const h of hits) {
+            const title = (h.title || "").trim();
+            if (isAgeAppropriateCompound(title, char) && !authenticWords.includes(title)) {
+              authenticWords.push(title);
+            }
+          }
+        }
+      } catch (e) {
+        // Offline / network fallback handled gracefully
+      } finally {
+        if (indicator) indicator.classList.add("hidden");
+      }
+
+      // Prioritize 2-character compounds first (easier for 4-12 year olds), then 3-4 character idioms
+      authenticWords = Array.from(new Set(authenticWords))
+        .sort((a, b) => a.length - b.length)
+        .slice(0, 10);
+
+      const sampleWord = authenticWords[0] || char;
+      const entry = {
+        radical,
+        strokes: strokeCount || 0,
+        jyutping,
+        pinyin,
+        english,
+        sentence: `同學們一起學習「${char}」字的筆順，並用「${sampleWord}」練習造句。`,
+        words: authenticWords,
+        isOfficialHK: false
       };
 
-      const toast = document.createElement('div');
-      toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg border text-xs sm:text-sm font-bold flex items-center gap-2 transition-all duration-300 ${colors[type] || colors.info}`;
-      toast.textContent = message;
-      container.appendChild(toast);
-
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(-8px)';
-        setTimeout(() => toast.remove(), 300);
-      }, 3200);
+      state.lexicalCache[char] = entry;
+      return entry;
     }
 
     /**
      * ============================================================================
-     * 三、Web Audio API 即時反饋音效
+     * 4. HONG KONG CANTONESE (zh-HK) & MANDARIN (zh-TW) AUDIO ENGINE
+     *    - Global utterance array retention prevents GC cutoff
+     *    - Async voiceschanged loading & AudioContext unlock
+     *    - Reliable Cloud TTS audio fallback
      * ============================================================================
      */
-    function playFeedbackTone(type) {
+    window.__utterancePool = [];
+    let sharedAudioCtx = null;
+    let fallbackAudioPlayer = null;
+
+    function unlockAudioContext() {
       try {
-        unlockAudioOnFirstGesture();
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextClass) return;
-        if (!window.__audioCtx) window.__audioCtx = new AudioContextClass();
-        const ctx = window.__audioCtx;
-        if (ctx.state === 'suspended') ctx.resume();
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        const now = ctx.currentTime;
-
-        if (type === 'correct') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(1046.5, now);
-          osc.frequency.setValueAtTime(1318.5, now + 0.08);
-          gain.gain.setValueAtTime(0.14, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-          osc.start(now);
-          osc.stop(now + 0.26);
-        } else if (type === 'complete') {
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(523.25, now);
-          osc.frequency.setValueAtTime(659.25, now + 0.09);
-          osc.frequency.setValueAtTime(783.99, now + 0.18);
-          osc.frequency.setValueAtTime(1046.5, now + 0.27);
-          gain.gain.setValueAtTime(0.16, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
-          osc.start(now);
-          osc.stop(now + 0.54);
-        } else {
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(185, now);
-          gain.gain.setValueAtTime(0.12, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-          osc.start(now);
-          osc.stop(now + 0.23);
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
+        if (sharedAudioCtx.state === "suspended") {
+          sharedAudioCtx.resume();
         }
       } catch (e) {}
     }
 
-    /**
-     * ============================================================================
-     * 四、廣東話（zh-HK）與普通話雙語發音引擎（三重備援）
-     * ============================================================================
-     */
-    function detectSystemVoices() {
-      if (!('speechSynthesis' in window)) {
-        updateVoiceBadge('雲端粵語串流就緒', 'amber');
-        return;
-      }
+    function playGentleFeedbackSound(type = "correct") {
+      try {
+        unlockAudioContext();
+        if (!sharedAudioCtx) return;
+        const osc = sharedAudioCtx.createOscillator();
+        const gain = sharedAudioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(sharedAudioCtx.destination);
 
-      const voices = window.speechSynthesis.getVoices();
-      if (!voices || voices.length === 0) return;
-
-      appState.voicesLoaded = true;
-      const hkNameKeys = ['sin-ji', 'sinji', 'hong kong', 'cantonese', '粵語', '廣東話', '香港'];
-
-      appState.hkVoice =
-        voices.find(v => {
-          const lang = v.lang.toLowerCase();
-          return lang === 'zh-hk' || lang === 'yue-hk' || lang === 'yue' || lang.startsWith('yue-');
-        }) ||
-        voices.find(v => hkNameKeys.some(key => v.name.toLowerCase().includes(key))) ||
-        null;
-
-      appState.mandarinVoice =
-        voices.find(v => v.lang.toLowerCase() === 'zh-tw' || v.name.includes('Meijia')) ||
-        voices.find(v => v.lang.toLowerCase() === 'zh-cn' || v.name.includes('Ting-Ting')) ||
-        voices.find(v => v.lang.toLowerCase().startsWith('zh') && v !== appState.hkVoice) ||
-        null;
-
-      if (appState.hkVoice) {
-        const shortName = appState.hkVoice.name.replace(/Microsoft |Google |Apple /gi, '').slice(0, 14);
-        updateVoiceBadge(`粵語原生：${shortName}`, 'emerald');
-      } else {
-        updateVoiceBadge('粵語雲端串流就緒', 'amber');
-      }
-    }
-
-    function updateVoiceBadge(text, theme) {
-      const badge = document.getElementById('voice-status-badge');
-      const label = document.getElementById('voice-status-text');
-      if (!badge || !label) return;
-      label.textContent = text;
-      badge.className = theme === 'emerald'
-        ? 'text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5'
-        : 'text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1.5';
-    }
-
-    if ('speechSynthesis' in window) {
-      detectSystemVoices();
-      window.speechSynthesis.onvoiceschanged = detectSystemVoices;
-      let polls = 0;
-      const pollTimer = setInterval(() => {
-        detectSystemVoices();
-        polls++;
-        if (appState.voicesLoaded || polls > 15) clearInterval(pollTimer);
-      }, 200);
-    }
-
-    function playCloudAudioFallback(text, langCode = 'zh-HK') {
-      if (window.__ttsAudioPlayer) {
-        window.__ttsAudioPlayer.pause();
-        window.__ttsAudioPlayer = null;
-      }
-
-      const encoded = encodeURIComponent(text);
-      const urls = langCode === 'zh-HK'
-        ? [
-            `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=yue&q=${encoded}`,
-            `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=zh-HK&q=${encoded}`
-          ]
-        : [
-            `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=zh-CN&q=${encoded}`,
-            `https://dict.youdao.com/dictvoice?audio=${encoded}&type=2`
-          ];
-
-      let idx = 0;
-      function tryNext() {
-        if (idx >= urls.length) {
-          showToast('目前無可用語音輸出，請確認裝置音量設定', 'warn');
-          return;
+        const now = sharedAudioCtx.currentTime;
+        if (type === "correct") {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(587.33, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc.start(now);
+          osc.stop(now + 0.19);
+        } else if (type === "complete") {
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.1);
+          osc.frequency.setValueAtTime(783.99, now + 0.2);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+          osc.start(now);
+          osc.stop(now + 0.44);
+        } else {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(175, now + 0.14);
+          gain.gain.setValueAtTime(0.07, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+          osc.start(now);
+          osc.stop(now + 0.17);
         }
-        const audio = new Audio(urls[idx++]);
-        window.__ttsAudioPlayer = audio;
-        audio.onerror = () => tryNext();
-        audio.play().catch(() => tryNext());
-      }
-      tryNext();
+      } catch (e) {}
     }
 
-    function speakText(text, langCode = 'zh-HK') {
-      if (!text || !text.trim()) return;
-      unlockAudioOnFirstGesture();
+    function playCloudTTSFallback(text, targetLang) {
+      try {
+        if (fallbackAudioPlayer) {
+          fallbackAudioPlayer.pause();
+          fallbackAudioPlayer = null;
+        }
+        const tl = targetLang === "zh-HK" ? "zh-HK" : "zh-TW";
+        const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(tl)}&q=${encodeURIComponent(text)}`;
+        fallbackAudioPlayer = new Audio(url);
+        fallbackAudioPlayer.play().catch(() => {
+          showToast("請確認裝置已開啟音量以播放語音", "🔊");
+        });
+      } catch (e) {}
+    }
 
-      if (window.__ttsAudioPlayer) {
-        window.__ttsAudioPlayer.pause();
-        window.__ttsAudioPlayer = null;
+    function selectBestVoice(targetLang) {
+      if (!("speechSynthesis" in window)) return null;
+      const voices = window.speechSynthesis.getVoices();
+      if (!voices || voices.length === 0) return null;
+
+      if (targetLang === "zh-HK") {
+        return (
+          voices.find(v => /sin-?ji/i.test(v.name)) ||
+          voices.find(v => ["zh-hk", "yue-hk", "yue"].includes(v.lang.toLowerCase())) ||
+          voices.find(v => /cantonese|hong kong|粵語|廣東話/i.test(v.name)) ||
+          null
+        );
+      } else {
+        return (
+          voices.find(v => ["zh-tw", "zh-cn"].includes(v.lang.toLowerCase())) ||
+          voices.find(v => /^zh/i.test(v.lang) && !/hk|yue/i.test(v.lang)) ||
+          null
+        );
       }
+    }
 
-      if (!('speechSynthesis' in window)) {
-        playCloudAudioFallback(text, langCode);
-        return;
+    function refreshVoiceStatusIndicator() {
+      const statusEl = document.getElementById("voice-engine-status");
+      if (!statusEl) return;
+      const hkVoice = selectBestVoice("zh-HK");
+      if (hkVoice) {
+        statusEl.textContent = `語音引擎：已鎖定香港粵語 (${hkVoice.name})`;
+      } else {
+        statusEl.textContent = "語音引擎：雲端香港粵語＋系統語音雙備援就緒";
       }
+    }
 
-      detectSystemVoices();
-      const chosenVoice = langCode === 'zh-HK' ? appState.hkVoice : appState.mandarinVoice;
+    function speakText(text, targetLang = "zh-HK") {
+      if (!text) return;
+      unlockAudioContext();
 
-      // 若要求廣東話但本機未安裝粵語語音包，直接啟用純正粵語雲端串流，絕不誤用普通話替代
-      if (langCode === 'zh-HK' && !chosenVoice) {
-        playCloudAudioFallback(text, 'zh-HK');
+      if (!("speechSynthesis" in window)) {
+        playCloudTTSFallback(text, targetLang);
         return;
       }
 
@@ -997,1215 +1076,1100 @@
         }
         window.speechSynthesis.cancel();
 
-        setTimeout(() => {
-          const utterance = new SpeechSynthesisUtterance(text);
-          window.__ttsUtterancePool.push(utterance);
-          if (window.__ttsUtterancePool.length > 10) window.__ttsUtterancePool.shift();
-
-          utterance.lang = langCode;
-          if (chosenVoice) utterance.voice = chosenVoice;
-          utterance.rate = 0.85;
-          utterance.pitch = 1.0;
-
-          utterance.onerror = () => playCloudAudioFallback(text, langCode);
-          window.speechSynthesis.speak(utterance);
-        }, 45);
-      } catch (e) {
-        playCloudAudioFallback(text, langCode);
-      }
-    }
-
-    /**
-     * ============================================================================
-     * 五、雙 CDN 繁體筆順資料與權威／Wiktionary 真實字詞檢索引擎
-     *     - 絕不產生假詞語模板，全部新字詞語皆來自 Wiktionary API 檢索真實詞彙
-     * ============================================================================
-     */
-    async function fetchTraditionalStrokeData(char) {
-      if (STROKE_CACHE[char]) return STROKE_CACHE[char];
-
-      const encoded = encodeURIComponent(char);
-      const endpoints = [
-        `https://cdn.jsdelivr.net/npm/hanzi-writer-data-zh-tw@0.1/${encoded}.json`,
-        `https://unpkg.com/hanzi-writer-data-zh-tw@0.1/${encoded}.json`,
-        `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encoded}.json`
-      ];
-
-      for (const url of endpoints) {
-        try {
-          const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 4500);
-          const resp = await fetch(url, { signal: controller.signal });
-          clearTimeout(tid);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data && Array.isArray(data.strokes) && Array.isArray(data.medians)) {
-              STROKE_CACHE[char] = data;
-              return data;
-            }
-          }
-        } catch (err) {}
-      }
-      throw new Error(`無法載入「${char}」筆順資料`);
-    }
-
-    /**
-     * 從開源字庫及維基詞典 Wiktionary MediaWiki API 檢索新字的真實部首、釋義與 2–4 字常用詞語
-     */
-    async function fetchAuthenticLexicalData(char, detectedStrokeCount = 0) {
-      if (LOCAL_DICT[char]) {
-        return { ...LOCAL_DICT[char], sourceLabel: '香港小學學習字詞表' };
-      }
-      if (REMOTE_LEXICAL_CACHE[char]) {
-        return REMOTE_LEXICAL_CACHE[char];
-      }
-
-      const encoded = encodeURIComponent(char);
-      let radical = char;
-      let jyutping = '請點擊發音收聽';
-      let pinyin = '請點擊發音收聽';
-      let definition = `繁體漢字「${char}」`;
-      const foundWordsSet = new Set();
-
-      // 1. 平行請求：Wiktionary 條目（含部首、粵拼、釋義與衍生詞組）＋ prefixsearch / search 檢索真實常用詞
-      const wiktionaryPageUrl = `https://zh.wiktionary.org/w/api.php?action=query&prop=revisions|extracts&rvprop=content&explaintext=1&titles=${encoded}&format=json&origin=*`;
-      const wiktionaryPrefixUrl = `https://zh.wiktionary.org/w/api.php?action=query&list=prefixsearch&pssearch=${encoded}&pslimit=30&format=json&origin=*`;
-      const wiktionarySearchUrl = `https://zh.wiktionary.org/w/api.php?action=query&list=search&srsearch=intitle:${encoded}&srlimit=30&format=json&origin=*`;
-
-      const [pageRes, prefixRes, searchRes] = await Promise.allSettled([
-        fetch(wiktionaryPageUrl).then(r => r.json()),
-        fetch(wiktionaryPrefixUrl).then(r => r.json()),
-        fetch(wiktionarySearchUrl).then(r => r.json())
-      ]);
-
-      // 解析 Wiktionary 主頁面原始碼，提取部首、粵拼、普通話拼音與頁面內的真實詞組
-      if (pageRes.status === 'fulfilled' && pageRes.value?.query?.pages) {
-        const pages = pageRes.value.query.pages;
-        const pageObj = Object.values(pages)[0];
-        const wikitext = pageObj?.revisions?.[0]?.['*'] || '';
-        const extract = pageObj?.extract || '';
-
-        if (wikitext) {
-          // 提取部首
-          const radMatch = wikitext.match(/\|rad=([^\|\}\n]+)/) || wikitext.match(/部首[：:]\s*([^\s\|\]\}]+)/);
-          if (radMatch && radMatch[1]) {
-            const cleanRad = radMatch[1].replace(/[\[\]]/g, '').trim();
-            if (cleanRad) radical = cleanRad;
-          }
-
-          // 提取粵拼
-          const jyutMatch = wikitext.match(/\|j=([a-z]+[1-6])/i);
-          if (jyutMatch && jyutMatch[1]) {
-            jyutping = jyutMatch[1];
-          }
-
-          // 提取普通話拼音
-          const mMatch = wikitext.match(/\|m=([a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü1-5]+)/i);
-          if (mMatch && mMatch[1]) {
-            pinyin = mMatch[1];
-          }
-
-          // 從 Wiktionary 頁面連結 [[...]] 提取包含該字的真實 2–4 字繁體詞彙
-          const linkMatches = wikitext.matchAll(/\[\[([^\[\]\|#]+)(?:\|[^\[\]]+)?\]\]/g);
-          for (const m of linkMatches) {
-            const candidate = (m[1] || '').trim();
-            if (
-              candidate.length >= 2 &&
-              candidate.length <= 4 &&
-              candidate.includes(char) &&
-              /^[\u4e00-\u9fff]+$/.test(candidate)
-            ) {
-              foundWordsSet.add(candidate);
-            }
-          }
-        }
-
-        // 從純文字摘要提取簡明釋義
-        if (extract) {
-          const lines = extract.split('\n').map(l => l.trim()).filter(l => l.length > 2 && !l.startsWith('=='));
-          const meaningfulLine = lines.find(l => !l.includes('讀音') && !l.includes('異體字') && l.length <= 48);
-          if (meaningfulLine) {
-            definition = meaningfulLine;
-          }
-        }
-      }
-
-      // 2. 從前綴搜尋（以該字開頭的真實詞語）收集 2–4 字詞
-      if (prefixRes.status === 'fulfilled' && Array.isArray(prefixRes.value?.query?.prefixsearch)) {
-        for (const item of prefixRes.value.query.prefixsearch) {
-          const title = (item.title || '').trim();
-          if (
-            title.length >= 2 &&
-            title.length <= 4 &&
-            title.includes(char) &&
-            /^[\u4e00-\u9fff]+$/.test(title)
-          ) {
-            foundWordsSet.add(title);
-          }
-        }
-      }
-
-      // 3. 從標題包含搜尋（該字在詞語中間或結尾的真實詞語）收集 2–4 字詞
-      if (searchRes.status === 'fulfilled' && Array.isArray(searchRes.value?.query?.search)) {
-        for (const item of searchRes.value.query.search) {
-          const title = (item.title || '').trim();
-          if (
-            title.length >= 2 &&
-            title.length <= 4 &&
-            title.includes(char) &&
-            /^[\u4e00-\u9fff]+$/.test(title)
-          ) {
-            foundWordsSet.add(title);
-          }
-        }
-      }
-
-      // 優先排列 2 字及 3 字適合小學生／幼兒認讀的真實詞語（最多取 10 個，絕不湊假詞）
-      const sortedWords = Array.from(foundWordsSet).sort((a, b) => a.length - b.length).slice(0, 10);
-      const sampleWord = sortedWords[0] || char;
-
-      const entry = {
-        radical,
-        strokes: detectedStrokeCount || '?',
-        jyutping,
-        pinyin,
-        english: definition,
-        sentence: sortedWords.length > 0
-          ? `老師教我們認讀「${char}」字，並用「${sampleWord}」練習造句。`
-          : `我們一起專心觀察「${char}」字的筆順，一筆一畫寫工整。`,
-        words: sortedWords,
-        sourceLabel: '權威繁體漢語詞庫檢索'
-      };
-
-      REMOTE_LEXICAL_CACHE[char] = entry;
-      return entry;
-    }
-
-    function getSyncLexicalEntry(char, strokeCount = 0) {
-      if (LOCAL_DICT[char]) {
-        return { ...LOCAL_DICT[char], sourceLabel: '香港小學學習字詞表' };
-      }
-      if (REMOTE_LEXICAL_CACHE[char]) {
-        return REMOTE_LEXICAL_CACHE[char];
-      }
-      return {
-        radical: char,
-        strokes: strokeCount || '?',
-        jyutping: '檢索中...',
-        pinyin: '檢索中...',
-        english: `繁體漢字「${char}」`,
-        sentence: `我們一起專心學習寫好「${char}」這個字。`,
-        words: [],
-        sourceLabel: '權威繁體漢語詞庫檢索'
-      };
-    }
-
-    /**
-     * ============================================================================
-     * 六、互動格線渲染與 HanziWriter 控制
-     * ============================================================================
-     */
-    function renderCanvasGrid(type) {
-      appState.gridType = type;
-      const svg = document.getElementById('canvas-grid-svg');
-      if (!svg) return;
-
-      document.querySelectorAll('.grid-btn').forEach(btn => {
-        const active = btn.dataset.grid === type;
-        btn.className = active
-          ? 'grid-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-700 text-white shadow-xs transition-all'
-          : 'grid-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-white transition-all';
-      });
-
-      if (type === 'nine') {
-        svg.innerHTML = `
-          <line x1="100" y1="0" x2="100" y2="300" stroke="#F87171" stroke-width="1.5" stroke-dasharray="6,5" />
-          <line x1="200" y1="0" x2="200" y2="300" stroke="#F87171" stroke-width="1.5" stroke-dasharray="6,5" />
-          <line x1="0" y1="100" x2="300" y2="100" stroke="#F87171" stroke-width="1.5" stroke-dasharray="6,5" />
-          <line x1="0" y1="200" x2="300" y2="200" stroke="#F87171" stroke-width="1.5" stroke-dasharray="6,5" />
-        `;
-      } else if (type === 'four') {
-        svg.innerHTML = `
-          <line x1="150" y1="0" x2="150" y2="300" stroke="#F87171" stroke-width="1.5" stroke-dasharray="6,5" />
-          <line x1="0" y1="150" x2="300" y2="150" stroke="#F87171" stroke-width="1.5" stroke-dasharray="6,5" />
-          <line x1="0" y1="0" x2="300" y2="300" stroke="#FCA5A5" stroke-width="1" stroke-dasharray="4,6" />
-          <line x1="300" y1="0" x2="0" y2="300" stroke="#FCA5A5" stroke-width="1" stroke-dasharray="4,6" />
-        `;
-      } else {
-        svg.innerHTML = '';
-      }
-    }
-
-    function updateModeUI(isQuiz, progressText) {
-      appState.isQuizActive = isQuiz;
-      const modeBadge = document.getElementById('mode-indicator-badge');
-      const progressLabel = document.getElementById('stroke-progress-label');
-      const feedbackBanner = document.getElementById('quiz-feedback-banner');
-
-      if (modeBadge) {
-        if (isQuiz) {
-          modeBadge.textContent = '手寫糾錯測驗中';
-          modeBadge.className = 'px-2.5 py-0.5 rounded-full bg-red-50 text-[#D9381E] border border-red-200 font-extrabold';
-        } else {
-          modeBadge.textContent = '示範模式';
-          modeBadge.className = 'px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold';
-        }
-      }
-
-      if (progressLabel && progressText) {
-        progressLabel.textContent = progressText;
-      }
-
-      if (!isQuiz && feedbackBanner) {
-        feedbackBanner.classList.add('hidden');
-      }
-    }
-
-    function showQuizBanner(msg, isSuccess) {
-      const banner = document.getElementById('quiz-feedback-banner');
-      if (!banner) return;
-      banner.textContent = msg;
-      banner.className = isSuccess
-        ? 'absolute bottom-3 left-3 right-3 z-20 px-3 py-2 rounded-xl text-center text-xs sm:text-sm font-extrabold shadow-md bg-emerald-600 text-white'
-        : 'absolute bottom-3 left-3 right-3 z-20 px-3 py-2 rounded-xl text-center text-xs sm:text-sm font-extrabold shadow-md bg-[#D9381E] text-white';
-      banner.classList.remove('hidden');
-    }
-
-    function flashCanvasErrorBorder() {
-      const box = document.getElementById('canvas-outer-box');
-      if (!box) return;
-      box.classList.add('ring-4', 'ring-red-400', 'bg-red-50/40');
-      setTimeout(() => {
-        box.classList.remove('ring-4', 'ring-red-400', 'bg-red-50/40');
-      }, 380);
-    }
-
-    function setAnimateButtonState(isAnimating, isPaused = false) {
-      appState.isAnimating = isAnimating;
-      appState.isPaused = isPaused;
-      const label = document.getElementById('btn-animate-label');
-      if (!label) return;
-      if (isAnimating && !isPaused) {
-        label.textContent = '暫停示範';
-      } else if (isAnimating && isPaused) {
-        label.textContent = '繼續播放';
-      } else {
-        label.textContent = '播放筆順動畫';
-      }
-    }
-
-    function getSpeedMultiplier() {
-      if (appState.speedLevel === 'slow') return 0.55;
-      if (appState.speedLevel === 'fast') return 1.85;
-      return 1.0;
-    }
-
-    function renderMultiQueryBar(chars) {
-      const bar = document.getElementById('multi-query-bar');
-      const chipsContainer = document.getElementById('multi-query-chips');
-      if (!bar || !chipsContainer) return;
-
-      if (!chars || chars.length <= 1) {
-        bar.classList.add('hidden');
-        return;
-      }
-
-      bar.classList.remove('hidden');
-      chipsContainer.innerHTML = '';
-
-      chars.forEach(ch => {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.textContent = ch;
-        const isCurrent = ch === appState.currentChar;
-        chip.className = isCurrent
-          ? 'w-9 h-9 rounded-xl font-kaiti text-xl font-black bg-indigo-700 text-white shadow-xs transition-all'
-          : 'w-9 h-9 rounded-xl font-kaiti text-xl font-bold bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 transition-all';
-        chip.addEventListener('click', () => {
-          loadSingleCharacter(ch, false);
-        });
-        chipsContainer.appendChild(chip);
-      });
-    }
-
-    async function handleSearchInput(rawInput) {
-      const cleanedChars = Array.from((rawInput || '').trim()).filter(ch => /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch));
-      if (cleanedChars.length === 0) {
-        showToast('請輸入有效的繁體中文字！', 'warn');
-        return;
-      }
-
-      appState.queryChars = cleanedChars.slice(0, 5);
-      appState.fullGridChars = cleanedChars.slice(0, 5);
-      const multiInput = document.getElementById('ws-multichar-input');
-      if (multiInput) multiInput.value = appState.fullGridChars.join('');
-
-      await loadSingleCharacter(cleanedChars[0], true);
-    }
-
-    async function loadSingleCharacter(char, updateMultiBar = true) {
-      const currentToken = ++appState.loadToken;
-      appState.currentChar = char;
-      appState.stepStrokeIndex = 0;
-      setAnimateButtonState(false, false);
-
-      if (updateMultiBar) {
-        renderMultiQueryBar(appState.queryChars);
-      } else {
-        renderMultiQueryBar(appState.queryChars);
-      }
-
-      const loadingOverlay = document.getElementById('canvas-loading-overlay');
-      if (loadingOverlay) loadingOverlay.classList.remove('hidden');
-
-      document.querySelectorAll('.preset-char-btn').forEach(btn => {
-        const active = btn.dataset.char === char;
-        btn.className = active
-          ? 'preset-char-btn shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl font-kaiti text-xl sm:text-2xl font-bold bg-[#D9381E] text-white shadow-sm scale-105 transition-all'
-          : 'preset-char-btn shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl font-kaiti text-xl sm:text-2xl font-bold bg-stone-100 hover:bg-amber-100 text-slate-800 border border-stone-200 transition-all';
-      });
-
-      // 非同步檢索權威／Wiktionary 真實字詞資料
-      const wordsBadge = document.getElementById('words-loading-badge');
-      if (!LOCAL_DICT[char] && wordsBadge) {
-        wordsBadge.classList.remove('hidden');
-      }
-
-      try {
-        const [strokeResult, lexicalResult] = await Promise.allSettled([
-          fetchTraditionalStrokeData(char),
-          fetchAuthenticLexicalData(char, 0)
-        ]);
-
-        if (currentToken !== appState.loadToken) return;
-        if (wordsBadge) wordsBadge.classList.add('hidden');
-
-        const strokeData = strokeResult.status === 'fulfilled' ? strokeResult.value : null;
-        const detectedStrokes = strokeData ? strokeData.strokes.length : 0;
-        const entry = lexicalResult.status === 'fulfilled'
-          ? { ...lexicalResult.value, strokes: detectedStrokes || lexicalResult.value.strokes }
-          : getSyncLexicalEntry(char, detectedStrokes);
-
-        updateLexicalInfoPanel(char, entry);
-
-        if (strokeData) {
-          appState.charData = strokeData;
-          appState.totalStrokes = strokeData.strokes.length;
-
-          const targetEl = document.getElementById('hanzi-writer-target');
-          targetEl.innerHTML = '';
-
-          const boxSize = Math.min(targetEl.clientWidth || 290, 300);
-          appState.writer = HanziWriter.create(targetEl, char, {
-            width: boxSize,
-            height: boxSize,
-            padding: 16,
-            showOutline: appState.showOutline,
-            showCharacter: true,
-            strokeColor: '#1E293B',
-            outlineColor: '#CBD5E1',
-            radicalColor: '#D9381E',
-            highlightColor: '#2563EB',
-            drawingColor: '#1E40AF',
-            drawingWidth: 16,
-            strokeAnimationSpeed: getSpeedMultiplier(),
-            delayBetweenStrokes: 240,
-            charDataLoader: (c, onComplete) => onComplete(strokeData)
-          });
-
-          updateModeUI(false, `總筆畫：共 ${appState.totalStrokes} 畫`);
-          if (loadingOverlay) loadingOverlay.classList.add('hidden');
-
-          setTimeout(() => {
-            if (currentToken === appState.loadToken && appState.writer && !appState.isQuizActive) {
-              setAnimateButtonState(true, false);
-              appState.writer.animateCharacter({
-                onComplete: () => {
-                  if (currentToken === appState.loadToken) {
-                    appState.stepStrokeIndex = appState.totalStrokes;
-                    setAnimateButtonState(false, false);
-                  }
-                }
-              });
-            }
-          }, 200);
-        } else {
-          if (loadingOverlay) loadingOverlay.classList.add('hidden');
-          appState.charData = null;
-          appState.writer = null;
-          appState.totalStrokes = 0;
-          const targetEl = document.getElementById('hanzi-writer-target');
-          targetEl.innerHTML = `<span class="font-kaiti text-[170px] text-slate-800 select-none">${char}</span>`;
-          showToast(`暫無「${char}」的向量筆順資料，已顯示標準字形`, 'warn');
-        }
-      } catch (err) {
-        if (currentToken !== appState.loadToken) return;
-        if (loadingOverlay) loadingOverlay.classList.add('hidden');
-        if (wordsBadge) wordsBadge.classList.add('hidden');
-      }
-    }
-
-    function updateLexicalInfoPanel(char, entry) {
-      document.getElementById('info-big-char').textContent = char;
-      document.getElementById('info-radical').textContent = entry.radical;
-      document.getElementById('info-strokes').textContent = entry.strokes;
-      document.getElementById('info-jyutping').textContent = entry.jyutping;
-      document.getElementById('info-pinyin').textContent = entry.pinyin;
-      document.getElementById('info-english').textContent = entry.english;
-      document.getElementById('info-sentence').textContent = entry.sentence;
-      document.getElementById('info-source-tag').textContent = entry.sourceLabel || '香港小學學習字詞表';
-
-      const wordsGrid = document.getElementById('words-grid-container');
-      wordsGrid.innerHTML = '';
-
-      if (!entry.words || entry.words.length === 0) {
-        wordsGrid.innerHTML = `
-          <div class="col-span-full bg-stone-50 border border-stone-200 rounded-xl p-4 text-center text-xs sm:text-sm text-slate-500">
-            此為較罕見單字，權威詞庫暫無收錄適合幼兒的 2–4 字獨立常用詞條。
-          </div>
-        `;
-        return;
-      }
-
-      entry.words.slice(0, 10).forEach(word => {
-        const card = document.createElement('div');
-        card.className = 'bg-stone-50 hover:bg-amber-50/90 border border-stone-200 hover:border-amber-300 rounded-xl p-2.5 flex items-center justify-between gap-1 transition-all shadow-2xs';
-
-        const charsWrapper = document.createElement('div');
-        charsWrapper.className = 'flex items-center flex-wrap font-bold text-base sm:text-lg text-slate-800 tracking-wide';
-
-        Array.from(word).forEach(ch => {
-          const span = document.createElement('button');
-          span.type = 'button';
-          span.textContent = ch;
-          span.title = `點擊查詢「${ch}」字筆順`;
-          span.className = ch === char
-            ? 'text-[#D9381E] font-black hover:underline px-0.5 rounded'
-            : 'hover:text-indigo-700 hover:bg-indigo-100/70 px-0.5 rounded transition-colors cursor-pointer';
-          span.addEventListener('click', () => {
-            if (ch !== appState.currentChar) {
-              document.getElementById('char-search-input').value = ch;
-              appState.queryChars = [ch];
-              appState.fullGridChars = [ch];
-              loadSingleCharacter(ch, true);
-              speakText(ch, appState.wordSpeakLang);
-            }
-          });
-          charsWrapper.appendChild(span);
-        });
-
-        const speakBtn = document.createElement('button');
-        speakBtn.type = 'button';
-        speakBtn.title = `朗讀詞語「${word}」`;
-        speakBtn.className = 'w-7 h-7 rounded-lg bg-white hover:bg-indigo-100 text-slate-600 hover:text-indigo-800 border border-stone-200 flex items-center justify-center shrink-0 active:scale-90 transition-all';
-        speakBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>`;
-        speakBtn.addEventListener('click', () => {
-          speakText(word, appState.wordSpeakLang);
-        });
-
-        card.appendChild(charsWrapper);
-        card.appendChild(speakBtn);
-        wordsGrid.appendChild(card);
-      });
-    }
-
-    function startHandwritingQuiz() {
-      if (!appState.writer) {
-        showToast('此字暫無筆順測驗數據', 'warn');
-        return;
-      }
-
-      appState.writer.cancelQuiz();
-      setAnimateButtonState(false, false);
-      appState.stepStrokeIndex = 0;
-      updateModeUI(true, `請在格內書寫第 1 / ${appState.totalStrokes} 筆`);
-      showQuizBanner('✍️ 請用手指或滑鼠依正確筆順書寫！', true);
-
-      appState.writer.quiz({
-        showHintAfterMisses: 1,
-        highlightOnComplete: true,
-        onCorrectStroke: (strokeData) => {
-          playFeedbackTone('correct');
-          const done = strokeData.strokeNum + 1;
-          const total = appState.totalStrokes;
-          if (done < total) {
-            updateModeUI(true, `寫對了！請繼續第 ${done + 1} / ${total} 筆`);
-            showQuizBanner(`👍 筆順正確！已完成 ${done} / ${total} 筆`, true);
-          }
-        },
-        onMistake: (strokeData) => {
-          playFeedbackTone('wrong');
-          flashCanvasErrorBorder();
-          const expectNum = strokeData.strokeNum + 1;
-          showQuizBanner(`⚠️ 第 ${expectNum} 筆筆順或方向有誤，已自動閃爍提示正確筆畫！`, false);
-        },
-        onComplete: (summaryData) => {
-          playFeedbackTone('complete');
-          updateModeUI(false, `🎉 恭喜完成「${appState.currentChar}」字全部 ${appState.totalStrokes} 畫！`);
-          showQuizBanner(`🌟 太棒了！全部筆順正確（失誤 ${summaryData.totalMistakes} 次）`, true);
-          speakText(appState.currentChar, 'zh-HK');
-        }
-      });
-    }
-
-    function stepStroke(delta) {
-      if (!appState.writer || !appState.totalStrokes) return;
-      if (appState.isQuizActive) appState.writer.cancelQuiz();
-      setAnimateButtonState(false, false);
-
-      const nextIdx = Math.max(0, Math.min(appState.totalStrokes, appState.stepStrokeIndex + delta));
-      appState.stepStrokeIndex = nextIdx;
-
-      if (nextIdx === 0) {
-        appState.writer.hideCharacter();
-        updateModeUI(false, `已清空筆畫（共 ${appState.totalStrokes} 畫）`);
-      } else {
-        appState.writer.hideCharacter();
-        for (let i = 0; i < nextIdx - 1; i++) {
-          appState.writer.showStroke(i);
-        }
-        appState.writer.animateStroke(nextIdx - 1);
-        updateModeUI(false, `逐筆拆解：第 ${nextIdx} / ${appState.totalStrokes} 筆`);
-      }
-    }
-
-    /**
-     * ============================================================================
-     * 七、雙模式 A4 練字工作紙生成引擎
-     *     - 工作紙 1：標準教學工作紙（28 格九宮格 ＋ 純視覺紅點藍箭嘴筆順 ＋ 例句 ＋ 10 詞語）
-     *     - 工作紙 2：全版練字工作紙（20 格特大九宮格，5 行 × 4 列，支援單字或多字）
-     * ============================================================================
-     */
-    function buildMainStrokeArrowSvg(strokes, medians, fallbackChar) {
-      if (!strokes || strokes.length === 0) {
-        return `<span class="font-kaiti" style="font-size:80px; font-weight:bold; color:#111; position:relative; z-index:2;">${fallbackChar}</span>`;
-      }
-
-      let outlineLayer = '';
-      let vectorGuidesLayer = '';
-
-      strokes.forEach((pathD, idx) => {
-        // 空心字輪廓
-        outlineLayer += `<path d="${pathD}" fill="#FFFFFF" stroke="#1E293B" stroke-width="16" stroke-linejoin="round" />`;
-
-        if (medians && medians[idx] && medians[idx].length > 0) {
-          const pts = medians[idx];
-          const startPt = pts[0];
-          const polyPoints = pts.map(p => `${p[0]},${p[1]}`).join(' ');
-
-          // 藍色虛線方向路徑
-          vectorGuidesLayer += `
-            <polyline points="${polyPoints}" fill="none" stroke="#1D4ED8" stroke-width="14" stroke-dasharray="24,16" stroke-linecap="round" stroke-linejoin="round" />
-          `;
-
-          // 藍色方向箭嘴頭
-          if (pts.length >= 2) {
-            const pPrev = pts[pts.length - 2];
-            const pEnd = pts[pts.length - 1];
-            const deg = Math.atan2(pEnd[1] - pPrev[1], pEnd[0] - pPrev[0]) * (180 / Math.PI);
-            vectorGuidesLayer += `
-              <polygon points="-24,-15 12,0 -24,15" fill="#1D4ED8" transform="translate(${pEnd[0]}, ${pEnd[1]}) rotate(${deg})" />
-            `;
-          }
-
-          // 紅色筆畫起點編號 1, 2, 3...
-          vectorGuidesLayer += `
-            <g transform="translate(${startPt[0]}, ${startPt[1]}) scale(1, -1)">
-              <circle cx="0" cy="0" r="35" fill="#D9381E" stroke="#FFFFFF" stroke-width="6" />
-              <text x="0" y="13" text-anchor="middle" fill="#FFFFFF" font-size="38" font-weight="900" font-family="Arial, sans-serif">${idx + 1}</text>
-            </g>
-          `;
-        }
-      });
-
-      return `
-        <svg viewBox="0 0 1024 1024" style="width:100%; height:100%; position:relative; z-index:2; transform: translate(0, 0) scale(1, -1);">
-          <g transform="translate(0, 124)">
-            ${outlineLayer}
-            ${vectorGuidesLayer}
-          </g>
-        </svg>
-      `;
-    }
-
-    function getNineGridBgSvg() {
-      return `
-        <svg viewBox="0 0 100 100" style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;">
-          <line x1="33.33" y1="0" x2="33.33" y2="100" stroke="#CBD5E1" stroke-width="0.7" stroke-dasharray="2.5,2" />
-          <line x1="66.66" y1="0" x2="66.66" y2="100" stroke="#CBD5E1" stroke-width="0.7" stroke-dasharray="2.5,2" />
-          <line x1="0" y1="33.33" x2="100" y2="33.33" stroke="#CBD5E1" stroke-width="0.7" stroke-dasharray="2.5,2" />
-          <line x1="0" y1="66.66" x2="100" y2="66.66" stroke="#CBD5E1" stroke-width="0.7" stroke-dasharray="2.5,2" />
-        </svg>
-      `;
-    }
-
-    /**
-     * 工作紙 1：標準教學工作紙（單頁 A4 直向 210mm × 297mm）
-     */
-    function generateStandardWorksheetHTML() {
-      const char = appState.currentChar;
-      const entry = getSyncLexicalEntry(char, appState.totalStrokes);
-      const strokes = appState.charData ? appState.charData.strokes : [];
-      const medians = appState.charData ? appState.charData.medians : [];
-      const total = strokes.length || entry.strokes;
-      const nineGridBg = getNineGridBgSvg();
-      const mainArrowSvg = buildMainStrokeArrowSvg(strokes, medians, char);
-
-      let stepCardsHtml = '';
-      if (strokes.length > 0) {
-        const limit = Math.min(strokes.length, 24);
-        for (let i = 0; i < limit; i++) {
-          let paths = '';
-          for (let s = 0; s <= i; s++) {
-            const color = s === i ? '#D9381E' : '#475569';
-            paths += `<path d="${strokes[s]}" fill="${color}" />`;
-          }
-          stepCardsHtml += `
-            <div style="width:34px; height:34px; border:1px solid #94A3B8; border-radius:4px; position:relative; background:#FFFFFF;">
-              <span style="position:absolute; top:1px; left:2px; font-size:8px; font-weight:800; color:#D9381E; line-height:1;">${i + 1}</span>
-              <svg viewBox="0 0 1024 1024" style="width:100%; height:100%; transform: scale(1, -1);">
-                <g transform="translate(0, 124)">${paths}</g>
-              </svg>
-            </div>
-          `;
-        }
-      } else {
-        stepCardsHtml = `<div style="font-size:12px; color:#64748B;">（標準楷書字形練習：${char}）</div>`;
-      }
-
-      // 4 行 × 7 列 = 28 個標準九宮格（第 1 行深紅描紅 7 格 → 第 2 行淺灰淡字描紅 7 格 → 第 3–4 行空白九宮格 14 格）
-      let practiceGridRows = '';
-      for (let r = 0; r < 4; r++) {
-        let rowCells = '';
-        for (let c = 0; c < 7; c++) {
-          let glyph = '';
-          if (r === 0) {
-            glyph = `<span class="font-kaiti" style="font-size:56px; color:#991B1B; line-height:1;">${char}</span>`;
-          } else if (r === 1) {
-            glyph = `<span class="font-kaiti" style="font-size:56px; color:#CBD5E1; line-height:1;">${char}</span>`;
-          }
-          rowCells += `
-            <div style="width:82px; height:82px; border:1.5px solid #334155; position:relative; display:flex; align-items:center; justify-content:center; background:#FFFFFF;">
-              ${nineGridBg}
-              <div style="position:relative; z-index:2;">${glyph}</div>
-            </div>
-          `;
-        }
-        practiceGridRows += `<div style="display:flex; justify-content:space-between; gap:6px; margin-bottom:7px;">${rowCells}</div>`;
-      }
-
-      // 兩行五列（10 個真實常用詞語）
-      const displayWords = (entry.words && entry.words.length > 0)
-        ? entry.words.slice(0, 10)
-        : [`「${char}」字練習`];
-
-      const wordsGridHtml = displayWords.map(w => `
-        <div style="border:1.2px solid #64748B; border-radius:6px; padding:5px 4px; text-align:center; font-size:14px; font-weight:800; color:#1E293B; background:#F8FAFC; white-space:nowrap;">
-          ${w}
-        </div>
-      `).join('');
-
-      return `
-        <div style="font-family:'Noto Sans TC','DFKai-SB',sans-serif; color:#0F172A; background:#FFFFFF;">
-          <!-- 頂部標題與姓名日期 -->
-          <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2.5px solid #1E293B; padding-bottom:6px; margin-bottom:10px;">
-            <div>
-              <div style="font-size:18px; font-weight:900; color:#0F172A;">香港小學學習字詞表 · 繁體中文練字工作紙</div>
-              <div style="font-size:10.5px; color:#475569; margin-top:1px;">香港標準筆順箭嘴指引 · 28 格九宮格描紅書寫 · 常用詞語認讀</div>
-            </div>
-            <div style="font-size:12.5px; font-weight:700; display:flex; gap:12px; color:#1E293B;">
-              <span>姓名：____________</span>
-              <span>日期：___ 月 ___ 日</span>
-            </div>
-          </div>
-
-          <!-- 左右並排區：左側大筆順箭嘴＋屬性 ｜ 右側分步筆順小格 -->
-          <div style="display:grid; grid-template-columns: 1.15fr 1fr; gap:10px; margin-bottom:9px;">
-            <div style="display:flex; align-items:center; gap:12px; border:1.5px solid #334155; border-radius:10px; padding:9px 11px; background:#FFFDF9;">
-              <div style="width:106px; height:106px; border:2px solid #D9381E; background:#FFFFFF; position:relative; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                ${nineGridBg}
-                ${mainArrowSvg}
-              </div>
-              <div style="flex:1; display:flex; flex-direction:column; gap:5px;">
-                <div style="display:flex; flex-wrap:wrap; gap:5px;">
-                  <span style="padding:2px 7px; border-radius:5px; background:#FEF3C7; border:1px solid #F59E0B; font-size:11.5px; font-weight:800;">部首：${entry.radical}</span>
-                  <span style="padding:2px 7px; border-radius:5px; background:#E0E7FF; border:1px solid #6366F1; font-size:11.5px; font-weight:800;">筆畫：${total} 畫</span>
-                </div>
-                <div style="display:flex; flex-wrap:wrap; gap:5px;">
-                  <span style="padding:2px 7px; border-radius:5px; background:#FEE2E2; border:1px solid #EF4444; font-size:11.5px; font-weight:800; color:#B91C1C;">粵拼：${entry.jyutping}</span>
-                  <span style="padding:2px 7px; border-radius:5px; background:#F1F5F9; border:1px solid #94A3B8; font-size:11.5px; font-weight:700;">普通話：${entry.pinyin}</span>
-                </div>
-                <div style="font-size:11.5px; color:#334155; line-height:1.35;"><strong>釋義：</strong>${entry.english}</div>
-              </div>
-            </div>
-
-            <div style="border:1.5px solid #CBD5E1; border-radius:10px; padding:8px 10px; background:#FFFFFF; display:flex; flex-direction:column; justify-content:center;">
-              <div style="font-size:11px; font-weight:800; color:#334155; margin-bottom:5px;">一、筆順分步拆解：</div>
-              <div style="display:flex; flex-wrap:wrap; gap:4px;">
-                ${stepCardsHtml}
-              </div>
-            </div>
-          </div>
-
-          <!-- 幼兒生活例句橫幅 -->
-          <div style="font-size:13px; color:#0F172A; background:#FFFBEB; border:1px dashed #F59E0B; border-radius:8px; padding:5px 10px; margin-bottom:9px;">
-            <strong>幼兒例句：</strong>${entry.sentence}
-          </div>
-
-          <!-- 二、28 個標準九宮格（4 行 × 7 列） -->
-          <div style="margin-bottom:9px;">
-            <div style="font-size:12px; font-weight:800; color:#1E293B; margin-bottom:5px;">二、九宮格描紅與書寫練習（第 1 行深紅描紅 → 第 2 行淡字描紅 → 第 3–4 行獨立書寫）：</div>
-            ${practiceGridRows}
-          </div>
-
-          <!-- 三、常用詞語（兩行五列） -->
-          <div style="margin-bottom:8px;">
-            <div style="font-size:12px; font-weight:800; color:#1E293B; margin-bottom:5px;">三、常用詞語（兩行五列）：</div>
-            <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:6px;">
-              ${wordsGridHtml}
-            </div>
-          </div>
-
-          <!-- 頁尾鼓勵星星印章 -->
-          <div style="border-top:1.5px dashed #CBD5E1; padding-top:6px; display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:#475569;">
-            <span>自我評估與家長鼓勵印章： ☆☆☆☆☆ （寫得工整請塗滿星星！）</span>
-            <span style="font-weight:700; color:#1E40AF;">香港小學學習字詞表 · 互動練字工作紙</span>
-          </div>
-        </div>
-      `;
-    }
-
-    /**
-     * 工作紙 2：全版練字工作紙（20 格特大九宮格，5 行 × 4 列）
-     */
-    function generateFullGridWorksheetHTML() {
-      const chars = (appState.fullGridChars && appState.fullGridChars.length > 0)
-        ? appState.fullGridChars
-        : [appState.currentChar];
-
-      const primaryChar = chars[0];
-      const entry = getSyncLexicalEntry(primaryChar, appState.totalStrokes);
-      const strokes = appState.charData ? appState.charData.strokes : [];
-      const medians = appState.charData ? appState.charData.medians : [];
-      const nineGridBg = getNineGridBgSvg();
-
-      let refBoxesHtml = '';
-      if (chars.length === 1) {
-        const mainArrowSvg = buildMainStrokeArrowSvg(strokes, medians, primaryChar);
-        refBoxesHtml = `
-          <div style="display:flex; align-items:center; gap:14px;">
-            <div style="width:94px; height:94px; border:2.2px solid #D9381E; background:#FFFFFF; position:relative; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              ${nineGridBg}
-              ${mainArrowSvg}
-            </div>
-            <div style="font-size:13px; line-height:1.65; color:#334155;">
-              <div style="font-size:18px; font-weight:900; color:#0F172A;">全版練字紙 ·「${primaryChar}」字特大格練習</div>
-              <div>部首：<strong>${entry.radical}</strong> ｜ 筆畫：<strong>${strokes.length || entry.strokes}</strong> 畫 ｜ 粵拼：<strong style="color:#D9381E;">${entry.jyutping}</strong></div>
-              <div style="font-size:11px; color:#64748B;">第 1 行深紅描紅 → 第 2–3 行淺灰淡字描紅 → 第 4–5 行獨立書寫</div>
-            </div>
-          </div>
-        `;
-      } else {
-        const miniRefs = chars.map(ch => {
-          const cached = STROKE_CACHE[ch];
-          const svgInner = cached
-            ? buildMainStrokeArrowSvg(cached.strokes, cached.medians, ch)
-            : `<span class="font-kaiti" style="font-size:52px; font-weight:bold; color:#111; position:relative; z-index:2;">${ch}</span>`;
-          return `
-            <div style="width:74px; height:74px; border:2px solid #D9381E; background:#FFFFFF; position:relative; display:flex; align-items:center; justify-content:center;">
-              ${nineGridBg}
-              ${svgInner}
-            </div>
-          `;
-        }).join('');
-        refBoxesHtml = `
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            ${miniRefs}
-            <div style="font-size:13px; font-weight:800; color:#0F172A; margin-left:4px;">多字組合特大九宮格（共 ${chars.length} 字）</div>
-          </div>
-        `;
-      }
-
-      let rowsHtml = '';
-      const totalRows = 5;
-      const colsPerRow = 4;
-
-      for (let r = 0; r < totalRows; r++) {
-        const targetChar = chars.length === 1
-          ? primaryChar
-          : chars[r % chars.length];
-
-        let cellsHtml = '';
-        for (let c = 0; c < colsPerRow; c++) {
-          let glyphHtml = '';
-
-          if (chars.length === 1) {
-            if (r === 0) {
-              glyphHtml = `<span class="font-kaiti" style="font-size:102px; color:#B91C1C; line-height:1;">${targetChar}</span>`;
-            } else if (r === 1 || r === 2) {
-              glyphHtml = `<span class="font-kaiti" style="font-size:102px; color:#CBD5E1; line-height:1;">${targetChar}</span>`;
-            }
-          } else {
-            if (c === 0) {
-              glyphHtml = `<span class="font-kaiti" style="font-size:102px; color:#B91C1C; line-height:1;">${targetChar}</span>`;
-            } else if (c === 1) {
-              glyphHtml = `<span class="font-kaiti" style="font-size:102px; color:#CBD5E1; line-height:1;">${targetChar}</span>`;
-            }
-          }
-
-          cellsHtml += `
-            <div style="width:142px; height:142px; border:1.8px solid #334155; position:relative; display:flex; align-items:center; justify-content:center; background:#FFFFFF;">
-              ${nineGridBg}
-              <div style="position:relative; z-index:2;">${glyphHtml}</div>
-            </div>
-          `;
-        }
-
-        rowsHtml += `
-          <div style="display:flex; justify-content:space-between; gap:12px; margin-bottom:13px;">
-            ${cellsHtml}
-          </div>
-        `;
-      }
-
-      return `
-        <div style="font-family:'Noto Sans TC','DFKai-SB',sans-serif; color:#0F172A; background:#FFFFFF;">
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2.5px solid #1E293B; padding-bottom:10px; margin-bottom:15px;">
-            ${refBoxesHtml}
-            <div style="font-size:13px; font-weight:800; display:flex; flex-direction:column; gap:10px; text-align:right; color:#1E293B; flex-shrink:0;">
-              <span>姓名：_________________</span>
-              <span>日期：____ 月 ____ 日</span>
-            </div>
-          </div>
-
-          <div style="margin-bottom:6px;">
-            ${rowsHtml}
-          </div>
-
-          <div style="border-top:1.5px dashed #CBD5E1; padding-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#475569;">
-            <span>專注書寫 · 家長鼓勵印章： ☆☆☆☆☆ （寫得工整請塗滿星星！）</span>
-            <span style="font-weight:700; color:#1E40AF;">香港小學學習字詞表 · 全版 20 格特大九宮格練字紙</span>
-          </div>
-        </div>
-      `;
-    }
-
-    function generateActiveWorksheetHTML() {
-      return appState.worksheetMode === 'fullgrid'
-        ? generateFullGridWorksheetHTML()
-        : generateStandardWorksheetHTML();
-    }
-
-    function refreshWorksheetPreview() {
-      const sheetHtml = generateActiveWorksheetHTML();
-      document.getElementById('modal-a4-preview-sheet').innerHTML = sheetHtml;
-      document.getElementById('print-worksheet-container').innerHTML = sheetHtml;
-    }
-
-    function printInPopupWindow() {
-      const sheetHtml = generateActiveWorksheetHTML();
-      const titleSuffix = appState.worksheetMode === 'fullgrid'
-        ? `${appState.fullGridChars.join('')}_全版20格特大九宮格`
-        : `${appState.currentChar}_標準教學工作紙`;
-
-      const fullDocumentHtml = `<!DOCTYPE html>
-<html lang="zh-Hant-HK">
-<head>
-  <meta charset="UTF-8" />
-  <title>練字工作紙 - ${titleSuffix}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet" />
-  <style>
-    @page { size: A4 portrait; margin: 8mm 10mm; }
-    body {
-      margin: 0;
-      padding: 16px;
-      background: #FFFFFF;
-      font-family: 'Noto Sans TC', 'DFKai-SB', sans-serif;
-      print-color-adjust: exact;
-      -webkit-print-color-adjust: exact;
-    }
-    .font-kaiti { font-family: 'DFKai-SB', 'BiauKai', 'STKaiti', 'KaiTi', serif; }
-    .sheet-wrapper { max-width: 790px; margin: 0 auto; }
-    @media print {
-      body { padding: 0; }
-      .no-print-bar { display: none !important; }
-    }
-  </style>
-</head>
-<body>
-  <div class="no-print-bar" style="max-width:790px; margin:0 auto 12px; padding:10px 14px; background:#F1F5F9; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-    <span style="font-size:13px; font-weight:bold; color:#334155;">已開啟獨立純白列印視窗，若未自動彈出列印對話框請點擊右側按鈕：</span>
-    <button onclick="window.print()" style="background:#047857; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer;">立即列印 / 另存 PDF</button>
-  </div>
-  <div class="sheet-wrapper">${sheetHtml}</div>
-  <script>
-    window.onload = function() {
-      setTimeout(function() { window.print(); }, 350);
-    };
-  <\/script>
-</body>
-</html>`;
-
-      const popup = window.open('', '_blank', 'width=920,height=1080');
-      if (popup) {
-        popup.document.open();
-        popup.document.write(fullDocumentHtml);
-        popup.document.close();
-      } else {
-        showToast('瀏覽器阻擋了彈出視窗，正為你切換至直接列印...', 'warn');
-        printCurrentPage();
-      }
-    }
-
-    async function downloadHighResA4Pdf() {
-      const targetSheet = document.getElementById('modal-a4-preview-sheet');
-      if (!targetSheet) return;
-
-      showToast('正在產生高畫質 A4 PDF 工作紙，請稍候...', 'info');
-
-      try {
-        if (typeof window.html2canvas === 'function' && window.jspdf && window.jspdf.jsPDF) {
-          const canvas = await window.html2canvas(targetSheet, {
-            scale: 2.2,
-            useCORS: true,
-            backgroundColor: '#FFFFFF'
-          });
-
-          const imgData = canvas.toDataURL('image/jpeg', 0.95);
-          const { jsPDF } = window.jspdf;
-          const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
-          });
-
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          const margin = 8;
-          const usableW = pdfWidth - margin * 2;
-          const usableH = (canvas.height * usableW) / canvas.width;
-          const finalH = Math.min(usableH, pdfHeight - margin * 2);
-
-          pdf.addImage(imgData, 'JPEG', margin, margin, usableW, finalH);
-
-          const fileLabel = appState.worksheetMode === 'fullgrid'
-            ? `香港小學全版20格練字紙_${appState.fullGridChars.join('')}.pdf`
-            : `香港小學練字工作紙_${appState.currentChar}.pdf`;
-
-          pdf.save(fileLabel);
-          showToast(`已成功下載「${fileLabel}」！`, 'success');
-        } else {
-          throw new Error('PDF 套件未載入');
-        }
-      } catch (err) {
-        showToast('直接產生 PDF 時遇到環境限制，正為你開啟獨立視窗另存 PDF...', 'warn');
-        printInPopupWindow();
-      }
-    }
-
-    function printCurrentPage() {
-      refreshWorksheetPreview();
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          window.print();
-        }, 120);
-      });
-    }
-
-    async function switchWorksheetMode(mode) {
-      const btnModeStandard = document.getElementById('btn-ws-mode-standard');
-      const btnModeFullGrid = document.getElementById('btn-ws-mode-fullgrid');
-      const multiCharBar = document.getElementById('fullgrid-multichar-bar');
-
-      appState.worksheetMode = mode;
-      if (mode === 'fullgrid') {
-        btnModeFullGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-700 text-white shadow-xs transition-all';
-        btnModeStandard.className = 'px-3 py-1.5 rounded-lg text-xs font-extrabold bg-white text-slate-700 border border-stone-300 hover:bg-stone-50 transition-all';
-        multiCharBar.classList.remove('hidden');
-        for (const ch of appState.fullGridChars) {
-          try { await fetchTraditionalStrokeData(ch); } catch (e) {}
-        }
-      } else {
-        btnModeStandard.className = 'px-3 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-700 text-white shadow-xs transition-all';
-        btnModeFullGrid.className = 'px-3 py-1.5 rounded-lg text-xs font-extrabold bg-white text-slate-700 border border-stone-300 hover:bg-stone-50 transition-all';
-        multiCharBar.classList.add('hidden');
-      }
-      refreshWorksheetPreview();
-    }
-
-    function openWorksheetModal(preferredMode = null) {
-      if (preferredMode) {
-        switchWorksheetMode(preferredMode);
-      } else {
-        refreshWorksheetPreview();
-      }
-      document.getElementById('worksheet-preview-modal').classList.remove('hidden');
-    }
-
-    /**
-     * ============================================================================
-     * 八、事件綁定與啟動初始化
-     * ============================================================================
-     */
-    window.addEventListener('DOMContentLoaded', () => {
-      // 1. 生成 46 個香港幼小常用字快速選字按鈕
-      const presetBar = document.getElementById('preset-chars-bar');
-      PRESET_CHAR_LIST.forEach(ch => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.dataset.char = ch;
-        btn.textContent = ch;
-        btn.className = 'preset-char-btn shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl font-kaiti text-xl sm:text-2xl font-bold bg-stone-100 hover:bg-amber-100 text-slate-800 border border-stone-200 transition-all';
-        btn.addEventListener('click', () => {
-          document.getElementById('char-search-input').value = ch;
-          handleSearchInput(ch);
-        });
-        presetBar.appendChild(btn);
-      });
-
-      let isDrawerExpanded = false;
-      document.getElementById('btn-toggle-char-drawer').addEventListener('click', (e) => {
-        isDrawerExpanded = !isDrawerExpanded;
-        if (isDrawerExpanded) {
-          presetBar.className = 'flex flex-wrap items-center gap-2 pt-1';
-          e.target.textContent = '收合生字列 ▴';
-        } else {
-          presetBar.className = 'flex items-center gap-2 overflow-x-auto pb-1.5';
-          e.target.textContent = '展開全部生字 ▾';
-        }
-      });
-
-      // 2. 搜尋表單提交與一鍵帶入全版工作紙
-      document.getElementById('search-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const val = document.getElementById('char-search-input').value;
-        if (val && val.trim()) handleSearchInput(val.trim());
-      });
-
-      document.getElementById('btn-send-multiquery-to-ws2').addEventListener('click', () => {
-        appState.fullGridChars = [...appState.queryChars];
-        document.getElementById('ws-multichar-input').value = appState.fullGridChars.join('');
-        openWorksheetModal('fullgrid');
-      });
-
-      // 3. 格線切換（九宮格 / 田字格 / 空白格）
-      document.querySelectorAll('.grid-btn').forEach(btn => {
-        btn.addEventListener('click', () => renderCanvasGrid(btn.dataset.grid));
-      });
-
-      // 4. 字影與三段速度切換（慢速 / 正常 / 快速）
-      document.getElementById('btn-toggle-outline').addEventListener('click', (e) => {
-        appState.showOutline = !appState.showOutline;
-        e.target.textContent = appState.showOutline ? '字影：開' : '字影：關';
-        e.target.className = appState.showOutline
-          ? 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 transition-all'
-          : 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-500 border border-stone-200 transition-all';
-        if (appState.writer) {
-          appState.showOutline ? appState.writer.showOutline() : appState.writer.hideOutline();
-        }
-      });
-
-      document.getElementById('btn-toggle-speed').addEventListener('click', (e) => {
-        const cycle = { normal: 'fast', fast: 'slow', slow: 'normal' };
-        const labels = { slow: '速度：慢速', normal: '速度：正常', fast: '速度：快速' };
-        appState.speedLevel = cycle[appState.speedLevel];
-        e.target.textContent = labels[appState.speedLevel];
-        if (appState.writer) {
-          appState.writer._options.strokeAnimationSpeed = getSpeedMultiplier();
-        }
-      });
-
-      // 5. 筆順播放／暫停與逐筆控制
-      document.getElementById('btn-animate-full').addEventListener('click', () => {
-        if (!appState.writer) return;
-        if (appState.isQuizActive) appState.writer.cancelQuiz();
-
-        if (appState.isAnimating && !appState.isPaused) {
-          appState.writer.pauseAnimation();
-          setAnimateButtonState(true, true);
-          updateModeUI(false, '筆順示範已暫停');
-        } else if (appState.isAnimating && appState.isPaused) {
-          appState.writer.resumeAnimation();
-          setAnimateButtonState(true, false);
-          updateModeUI(false, `繼續播放筆順（共 ${appState.totalStrokes} 畫）`);
-        } else {
-          appState.stepStrokeIndex = appState.totalStrokes;
-          setAnimateButtonState(true, false);
-          updateModeUI(false, `正在播放完整筆順（共 ${appState.totalStrokes} 畫）`);
-          appState.writer.animateCharacter({
-            onComplete: () => {
-              setAnimateButtonState(false, false);
-              updateModeUI(false, `播放完成（共 ${appState.totalStrokes} 畫）`);
-            }
-          });
-        }
-      });
-
-      document.getElementById('btn-start-quiz').addEventListener('click', startHandwritingQuiz);
-      document.getElementById('btn-prev-stroke').addEventListener('click', () => stepStroke(-1));
-      document.getElementById('btn-next-stroke').addEventListener('click', () => stepStroke(1));
-      document.getElementById('btn-reset-canvas').addEventListener('click', () => {
-        if (!appState.writer) return;
-        if (appState.isQuizActive) appState.writer.cancelQuiz();
-        setAnimateButtonState(false, false);
-        appState.stepStrokeIndex = appState.totalStrokes;
-        appState.writer.showCharacter();
-        updateModeUI(false, `總筆畫：共 ${appState.totalStrokes} 畫`);
-      });
-
-      // 6. 雙語發音按鈕
-      document.getElementById('btn-speak-cantonese').addEventListener('click', () => speakText(appState.currentChar, 'zh-HK'));
-      document.getElementById('btn-speak-mandarin').addEventListener('click', () => speakText(appState.currentChar, 'zh-CN'));
-      document.getElementById('btn-speak-sentence-hk').addEventListener('click', () => speakText(document.getElementById('info-sentence').textContent, 'zh-HK'));
-      document.getElementById('btn-speak-sentence-md').addEventListener('click', () => speakText(document.getElementById('info-sentence').textContent, 'zh-CN'));
-
-      document.getElementById('btn-word-lang-hk').addEventListener('click', () => {
-        appState.wordSpeakLang = 'zh-HK';
-        document.getElementById('btn-word-lang-hk').className = 'px-2.5 py-1 rounded-lg bg-[#D9381E] text-white transition-all';
-        document.getElementById('btn-word-lang-md').className = 'px-2.5 py-1 rounded-lg bg-stone-100 text-slate-600 hover:bg-stone-200 transition-all';
-      });
-      document.getElementById('btn-word-lang-md').addEventListener('click', () => {
-        appState.wordSpeakLang = 'zh-CN';
-        document.getElementById('btn-word-lang-md').className = 'px-2.5 py-1 rounded-lg bg-indigo-700 text-white transition-all';
-        document.getElementById('btn-word-lang-hk').className = 'px-2.5 py-1 rounded-lg bg-stone-100 text-slate-600 hover:bg-stone-200 transition-all';
-      });
-
-      // 7. 工作紙預覽視窗與雙模式切換器
-      document.getElementById('btn-ws-mode-standard').addEventListener('click', () => switchWorksheetMode('standard'));
-      document.getElementById('btn-ws-mode-fullgrid').addEventListener('click', () => switchWorksheetMode('fullgrid'));
-
-      document.getElementById('btn-apply-multichar').addEventListener('click', async () => {
-        const raw = document.getElementById('ws-multichar-input').value || '';
-        const chars = Array.from(raw.trim()).filter(ch => /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch)).slice(0, 5);
-        if (chars.length === 0) {
-          showToast('請輸入至少 1 個繁體中文字！', 'warn');
+        const voice = selectBestVoice(targetLang);
+        // Never substitute Mandarin when Hong Kong Cantonese is requested
+        if (targetLang === "zh-HK" && !voice) {
+          playCloudTTSFallback(text, "zh-HK");
           return;
         }
-        appState.fullGridChars = chars;
-        for (const ch of chars) {
-          try { await fetchTraditionalStrokeData(ch); } catch (e) {}
+
+        const utter = new SpeechSynthesisUtterance(text);
+        window.__utterancePool.push(utter);
+        if (window.__utterancePool.length > 6) window.__utterancePool.shift();
+
+        utter.lang = targetLang === "zh-HK" ? "zh-HK" : (voice?.lang || "zh-TW");
+        if (voice) utter.voice = voice;
+        utter.rate = text.length === 1 ? 0.85 : 0.96;
+        utter.pitch = 1.0;
+
+        utter.onerror = () => playCloudTTSFallback(text, targetLang);
+        utter.onend = () => {
+          const idx = window.__utterancePool.indexOf(utter);
+          if (idx !== -1) window.__utterancePool.splice(idx, 1);
+        };
+
+        window.speechSynthesis.speak(utter);
+      } catch (e) {
+        playCloudTTSFallback(text, targetLang);
+      }
+    }
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+        refreshVoiceStatusIndicator();
+      };
+    }
+
+    /**
+     * ============================================================================
+     * 5. VISUAL-ONLY STROKE-ORDER ARROW DIAGRAM GENERATOR
+     *    - Inverted coordinate transform: transform="translate(0, 900) scale(1, -1)"
+     *    - Hollow stroke outlines
+     *    - Red stroke-starting numbers (1, 2, 3...) at each stroke's initial point
+     *    - Blue dashed directional arrows inside strokes
+     *    - Zero text descriptions of stroke order
+     * ============================================================================
+     */
+    function buildVisualArrowDiagramSVG(charData, options = {}) {
+      const {
+        size = 100,
+        showNumbers = true,
+        showArrows = true,
+        highlightUpTo = null,
+        idPrefix = "diag"
+      } = options;
+
+      if (!charData || !charData.strokes) {
+        return `<svg viewBox="0 0 1024 1024" width="${size}" height="${size}"></svg>`;
+      }
+
+      const strokes = charData.strokes;
+      const medians = charData.medians || [];
+      const limit = highlightUpTo !== null ? Math.min(highlightUpTo, strokes.length) : strokes.length;
+      const markerId = `${idPrefix}-arr-${Math.random().toString(36).slice(2, 8)}`;
+
+      const defs = `
+        <defs>
+          <marker id="${markerId}" markerWidth="5" markerHeight="5" refX="3.5" refY="2.5" orient="auto">
+            <polygon points="0 0, 5 2.5, 0 5" fill="#1d4ed8" />
+          </marker>
+        </defs>
+      `;
+
+      const gridGuides = `
+        <g stroke="#f1d5d5" stroke-width="10" stroke-dasharray="22,18">
+          <line x1="341" y1="0" x2="341" y2="1024" />
+          <line x1="682" y1="0" x2="682" y2="1024" />
+          <line x1="0" y1="341" x2="1024" y2="341" />
+          <line x1="0" y1="682" x2="1024" y2="682" />
+        </g>
+      `;
+
+      let pathsHtml = `<g transform="translate(0, 900) scale(1, -1)">`;
+
+      // Ghost remaining strokes for progressive step boxes
+      if (highlightUpTo !== null) {
+        for (let i = limit; i < strokes.length; i++) {
+          pathsHtml += `<path d="${strokes[i]}" fill="#f3f4f6" stroke="#e5e7eb" stroke-width="10" />`;
         }
-        refreshWorksheetPreview();
-        showToast(`已套用「${chars.join('、')}」至全版 20 格特大九宮格工作紙`, 'success');
+      }
+
+      // Hollow stroke outlines
+      for (let i = 0; i < limit; i++) {
+        const isCurrent = highlightUpTo !== null && i === limit - 1;
+        const fillCol = highlightUpTo !== null ? (isCurrent ? "#fee2e2" : "#e5e7eb") : "#ffffff";
+        const strokeCol = highlightUpTo !== null ? (isCurrent ? "#c83e37" : "#4b5563") : "#1f2937";
+        pathsHtml += `<path d="${strokes[i]}" fill="${fillCol}" stroke="${strokeCol}" stroke-width="16" stroke-linejoin="round" />`;
+      }
+
+      // Blue dashed directional arrows along stroke medians
+      if (showArrows) {
+        const startIdx = highlightUpTo !== null ? Math.max(0, limit - 1) : 0;
+        for (let i = startIdx; i < limit; i++) {
+          const med = medians[i];
+          if (med && med.length >= 2) {
+            const pts = med.map(p => `${p[0]},${p[1]}`).join(" ");
+            pathsHtml += `
+              <polyline
+                points="${pts}"
+                fill="none"
+                stroke="#1d4ed8"
+                stroke-width="15"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-dasharray="26,20"
+                marker-end="url(#${markerId})"
+              />
+            `;
+          }
+        }
+      }
+
+      pathsHtml += `</g>`;
+
+      // Red stroke-starting numbers (1, 2, 3...)
+      let numbersHtml = "";
+      if (showNumbers && highlightUpTo === null) {
+        for (let i = 0; i < limit; i++) {
+          const med = medians[i];
+          if (med && med.length > 0) {
+            const cx = Math.max(58, Math.min(966, med[0][0]));
+            const cy = Math.max(58, Math.min(966, 900 - med[0][1]));
+            numbersHtml += `
+              <g>
+                <circle cx="${cx}" cy="${cy}" r="38" fill="#dc2626" stroke="#ffffff" stroke-width="7" />
+                <text x="${cx}" y="${cy + 13}" text-anchor="middle" fill="#ffffff" font-size="38" font-weight="800" font-family="Inter, Arial, sans-serif">${i + 1}</text>
+              </g>
+            `;
+          }
+        }
+      }
+
+      return `
+        <svg viewBox="0 0 1024 1024" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" class="block">
+          ${defs}
+          ${gridGuides}
+          ${pathsHtml}
+          ${numbersHtml}
+        </svg>
+      `;
+    }
+
+    /**
+     * Generates a Nine-Palace SVG Box for A4 Worksheets ('dark-red' | 'light-grey' | 'blank')
+     */
+    function buildWorksheetGridBoxSVG(charData, variant = "blank") {
+      let glyphHtml = "";
+      if (charData && charData.strokes && variant !== "blank") {
+        const fillCol = variant === "dark-red" ? "#b91c1c" : "#d1d5db";
+        glyphHtml = `<g transform="translate(0, 900) scale(1, -1)">`;
+        for (const d of charData.strokes) {
+          glyphHtml += `<path d="${d}" fill="${fillCol}" />`;
+        }
+        glyphHtml += `</g>`;
+      }
+
+      return `
+        <svg viewBox="0 0 1024 1024" class="w-full h-full block bg-white" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="6" width="1012" height="1012" fill="#ffffff" stroke="#c83e37" stroke-width="14" />
+          <line x1="341" y1="12" x2="341" y2="1012" stroke="#e5a3a0" stroke-width="8" stroke-dasharray="22,16" />
+          <line x1="682" y1="12" x2="682" y2="1012" stroke="#e5a3a0" stroke-width="8" stroke-dasharray="22,16" />
+          <line x1="12" y1="341" x2="1012" y2="341" stroke="#e5a3a0" stroke-width="8" stroke-dasharray="22,16" />
+          <line x1="12" y1="682" x2="1012" y2="682" stroke="#e5a3a0" stroke-width="8" stroke-dasharray="22,16" />
+          ${glyphHtml}
+        </svg>
+      `;
+    }
+
+    /**
+     * ============================================================================
+     * 6. INTERACTIVE HANZIWRITER CONTROLLER & HANDWRITING QUIZ
+     * ============================================================================
+     */
+    async function loadCharacterIntoWorkspace(char) {
+      const loader = document.getElementById("writer-loader");
+      loader.classList.remove("hidden");
+
+      state.isPlaying = false;
+      state.isQuizMode = false;
+      state.showOutline = true;
+      updatePlayPauseUI();
+      updateQuizUI();
+
+      try {
+        const charData = await fetchTraditionalCharData(char);
+        state.totalStrokes = charData.strokes.length;
+        state.currentStrokeStep = state.totalStrokes;
+
+        const target = document.getElementById("hanzi-writer-target");
+        target.innerHTML = "";
+
+        state.writer = HanziWriter.create(target, char, {
+          width: 260,
+          height: 260,
+          padding: 14,
+          showOutline: true,
+          showCharacter: true,
+          strokeAnimationSpeed: state.speed,
+          delayBetweenStrokes: Math.max(120, Math.round(320 / state.speed)),
+          strokeColor: "#1c1917",
+          radicalColor: "#c83e37",
+          outlineColor: "#e7e5e4",
+          highlightColor: "#2563eb",
+          drawingColor: "#c83e37",
+          drawingWidth: 26,
+          showHintAfterMisses: 2,
+          charDataLoader: (c, onComplete) => onComplete(charData)
+        });
+
+        updateStrokeCounterLabel(state.totalStrokes, state.totalStrokes);
+
+        // Render Visual-Only Stroke-Order Arrow Diagram + Progressive Step Mini Boxes
+        document.getElementById("diagram-stroke-count").textContent = `共 ${state.totalStrokes} 畫`;
+        document.getElementById("main-arrow-svg-box").innerHTML = buildVisualArrowDiagramSVG(charData, {
+          size: 86,
+          showNumbers: true,
+          showArrows: true,
+          idPrefix: "main"
+        });
+
+        const miniStrip = document.getElementById("step-mini-strip");
+        miniStrip.innerHTML = "";
+        for (let i = 1; i <= state.totalStrokes; i++) {
+          const stepBtn = document.createElement("button");
+          stepBtn.className = "shrink-0 flex flex-col items-center bg-white rounded-lg border border-stone-200 hover:border-[#c83e37] p-1 transition cursor-pointer";
+          stepBtn.title = `跳至第 ${i} 畫`;
+          stepBtn.innerHTML = `
+            ${buildVisualArrowDiagramSVG(charData, { size: 46, showNumbers: false, showArrows: true, highlightUpTo: i, idPrefix: `step${i}` })}
+            <span class="text-[10px] font-bold text-stone-500 mt-0.5">${i}</span>
+          `;
+          stepBtn.addEventListener("click", () => jumpToStrokeStep(i));
+          miniStrip.appendChild(stepBtn);
+        }
+
+        const lex = await resolveLexicalEntry(char, state.totalStrokes);
+        lex.strokes = state.totalStrokes;
+        renderLexicalCard(char, lex);
+
+      } catch (err) {
+        showToast(err.message || `載入「${char}」失敗，請嘗試其他繁體中文字`, "⚠️");
+      } finally {
+        loader.classList.add("hidden");
+      }
+    }
+
+    function updateStrokeCounterLabel(current, total) {
+      document.getElementById("stroke-progress-label").textContent = `${current} / ${total}`;
+    }
+
+    function updatePlayPauseUI() {
+      const icon = document.getElementById("play-pause-icon");
+      const text = document.getElementById("play-pause-text");
+      if (state.isPlaying) {
+        icon.textContent = "⏸";
+        text.textContent = "暫停";
+      } else {
+        icon.textContent = "▶";
+        text.textContent = "筆順演示";
+      }
+    }
+
+    function updateQuizUI() {
+      const btnText = document.getElementById("quiz-btn-text");
+      const helperRow = document.getElementById("quiz-helper-row");
+      const feedback = document.getElementById("quiz-feedback-bar");
+
+      if (state.isQuizMode) {
+        helperRow.classList.remove("hidden");
+        btnText.textContent = "結束練習";
+        feedback.className = "mt-3 w-full text-center text-xs font-bold py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200";
+        feedback.textContent = "✍️ 寫字練習中：請用手指或滑鼠在格內依筆順書寫";
+      } else {
+        helperRow.classList.add("hidden");
+        btnText.textContent = "寫字練習";
+        feedback.className = "mt-3 w-full text-center text-xs font-semibold py-2 px-3 rounded-xl bg-stone-100 text-stone-700";
+        feedback.textContent = "點擊「筆順演示」觀看動態寫法，或點擊「寫字練習」在格內書寫";
+      }
+    }
+
+    function togglePlayPauseAnimation() {
+      if (!state.writer) return;
+      if (state.isQuizMode) {
+        state.writer.cancelQuiz();
+        state.isQuizMode = false;
+        updateQuizUI();
+      }
+
+      if (state.isPlaying) {
+        state.writer.pauseAnimation();
+        state.isPlaying = false;
+        updatePlayPauseUI();
+      } else {
+        state.isPlaying = true;
+        updatePlayPauseUI();
+        state.writer.animateCharacter({
+          onComplete: () => {
+            state.isPlaying = false;
+            state.currentStrokeStep = state.totalStrokes;
+            updateStrokeCounterLabel(state.totalStrokes, state.totalStrokes);
+            updatePlayPauseUI();
+          }
+        });
+      }
+    }
+
+    function jumpToStrokeStep(targetStep) {
+      if (!state.writer || state.totalStrokes === 0) return;
+      if (state.isQuizMode) {
+        state.writer.cancelQuiz();
+        state.isQuizMode = false;
+        updateQuizUI();
+      }
+      state.isPlaying = false;
+      updatePlayPauseUI();
+
+      const clamped = Math.max(0, Math.min(state.totalStrokes, targetStep));
+      state.currentStrokeStep = clamped;
+      state.writer.hideCharacter();
+      if (state.showOutline) state.writer.showOutline();
+
+      for (let i = 0; i < clamped; i++) {
+        state.writer.showStroke(i);
+      }
+      updateStrokeCounterLabel(clamped, state.totalStrokes);
+    }
+
+    function resetCanvasState() {
+      if (!state.writer) return;
+      if (state.isQuizMode) {
+        state.writer.cancelQuiz();
+        state.isQuizMode = false;
+        updateQuizUI();
+      }
+      state.isPlaying = false;
+      updatePlayPauseUI();
+      state.showOutline = true;
+      state.writer.showOutline();
+      state.writer.showCharacter();
+      state.currentStrokeStep = state.totalStrokes;
+      updateStrokeCounterLabel(state.totalStrokes, state.totalStrokes);
+    }
+
+    function toggleHandwritingQuiz() {
+      if (!state.writer) return;
+
+      if (state.isQuizMode) {
+        resetCanvasState();
+        return;
+      }
+
+      state.isPlaying = false;
+      updatePlayPauseUI();
+      state.isQuizMode = true;
+      state.currentStrokeStep = 0;
+      updateStrokeCounterLabel(0, state.totalStrokes);
+      updateQuizUI();
+
+      const feedback = document.getElementById("quiz-feedback-bar");
+      const frame = document.getElementById("canvas-frame");
+
+      state.writer.quiz({
+        onMistake: (strokeData) => {
+          playGentleFeedbackSound("wrong");
+          frame.classList.remove("flash-mistake");
+          void frame.offsetWidth;
+          frame.classList.add("flash-mistake");
+          feedback.className = "mt-3 w-full text-center text-xs font-bold py-2 px-3 rounded-xl bg-red-50 text-[#c83e37] border border-red-200";
+          feedback.textContent = `筆順或方向有誤（第 ${strokeData.strokeNum + 1} 畫），請再試一次！`;
+        },
+        onCorrectStroke: (strokeData) => {
+          playGentleFeedbackSound("correct");
+          const done = strokeData.strokeNum + 1;
+          state.currentStrokeStep = done;
+          updateStrokeCounterLabel(done, state.totalStrokes);
+          feedback.className = "mt-3 w-full text-center text-xs font-bold py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200";
+          feedback.textContent = `寫得很好！已完成第 ${done} / ${state.totalStrokes} 畫`;
+        },
+        onComplete: (summaryData) => {
+          playGentleFeedbackSound("complete");
+          const activeChar = state.chars[state.activeIndex];
+          speakText(activeChar, "zh-HK");
+          feedback.className = "mt-3 w-full text-center text-xs font-extrabold py-2 px-3 rounded-xl bg-amber-100 text-amber-900 border border-amber-300";
+          feedback.textContent = `🎉 太棒了！「${activeChar}」字全部筆順書寫正確！（錯誤次數：${summaryData.totalMistakes}）`;
+        }
+      });
+    }
+
+    /**
+     * ============================================================================
+     * 7. LEXICAL CARD & 2x5 VOCABULARY GRID RENDERER
+     * ============================================================================
+     */
+    function renderLexicalCard(char, lex) {
+      document.getElementById("display-char-glyph").textContent = char;
+      document.getElementById("meta-radical").textContent = lex.radical;
+      document.getElementById("meta-strokes").textContent = lex.strokes;
+      document.getElementById("meta-jyutping").textContent = lex.jyutping;
+      document.getElementById("meta-pinyin").textContent = lex.pinyin;
+      document.getElementById("meta-english").textContent = lex.english;
+      document.getElementById("meta-sentence").textContent = lex.sentence;
+
+      const sourceBadge = document.getElementById("meta-source-badge");
+      if (lex.isOfficialHK) {
+        sourceBadge.textContent = "香港小學學習字詞表";
+        sourceBadge.className = "px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold";
+      } else {
+        sourceBadge.textContent = "維基詞典繁體詞庫";
+        sourceBadge.className = "px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold";
+      }
+
+      const vocabContainer = document.getElementById("vocab-grid-container");
+      vocabContainer.innerHTML = "";
+
+      const wordsList = lex.words.slice(0, 10);
+      if (wordsList.length === 0) {
+        vocabContainer.innerHTML = `
+          <div class="col-span-full py-6 text-center text-xs text-stone-500 bg-stone-50 rounded-xl border border-stone-200">
+            暫未檢索到更多適合 4–12 歲的相關複合詞語，可直接點擊上方按鈕生成「${char}」字工作紙。
+          </div>
+        `;
+        return;
+      }
+
+      wordsList.forEach((word, idx) => {
+        const card = document.createElement("div");
+        card.className = "rounded-xl border border-stone-200 bg-stone-50/75 hover:bg-red-50/50 hover:border-[#c83e37]/50 p-2.5 flex flex-col items-center justify-between transition";
+
+        const topRow = document.createElement("div");
+        topRow.className = "w-full flex items-center justify-between text-[10px] text-stone-400 mb-1";
+        topRow.innerHTML = `<span class="font-bold">${idx + 1}</span>`;
+
+        const audioBtn = document.createElement("button");
+        audioBtn.className = "text-stone-500 hover:text-[#c83e37] p-0.5 rounded transition cursor-pointer";
+        audioBtn.title = `粵語朗讀「${word}」`;
+        audioBtn.textContent = "🔊";
+        audioBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          speakText(word, "zh-HK");
+        });
+        topRow.appendChild(audioBtn);
+
+        const charsRow = document.createElement("div");
+        charsRow.className = "flex items-center justify-center gap-0.5 my-0.5";
+
+        Array.from(word).forEach(ch => {
+          const chBtn = document.createElement("button");
+          const isCurrent = ch === char;
+          chBtn.textContent = ch;
+          chBtn.title = `點擊學習「${ch}」字`;
+          chBtn.className = isCurrent
+            ? "font-kai text-lg font-bold text-[#c83e37] px-0.5 rounded hover:bg-red-100 transition cursor-pointer"
+            : "font-kai text-lg font-bold text-stone-800 px-0.5 rounded hover:bg-amber-200/80 hover:text-stone-950 transition cursor-pointer";
+          chBtn.addEventListener("click", () => setSearchCharacters(ch));
+          charsRow.appendChild(chBtn);
+        });
+
+        card.appendChild(topRow);
+        card.appendChild(charsRow);
+        vocabContainer.appendChild(card);
+      });
+    }
+
+    /**
+     * ============================================================================
+     * 8. DUAL-MODE SINGLE-PAGE A4 PRINTABLE WORKSHEETS (210mm x 297mm)
+     *    - Worksheet 1: 24 Nine-Palace Grids (4 rows x 6 cols) + 10 Vocab Words (2x5)
+     *    - Worksheet 2: 24 Large Nine-Palace Grids (6 rows x 4 cols)
+     * ============================================================================
+     */
+    async function renderWorksheetHTML(mode = "ws1", multiMode = false) {
+      const container = document.getElementById("printable-a4-container");
+      const activeChar = state.chars[state.activeIndex];
+      const charData = await fetchTraditionalCharData(activeChar);
+      const lex = await resolveLexicalEntry(activeChar, charData.strokes.length);
+
+      if (mode === "ws1") {
+        // WORKSHEET 1: Standard Teaching Worksheet (24 Nine-Palace Grids: 4 rows x 6 cols)
+        const arrowDiagram = buildVisualArrowDiagramSVG(charData, {
+          size: 112,
+          showNumbers: true,
+          showArrows: true,
+          idPrefix: "ws1-main"
+        });
+
+        const maxStepsShown = Math.min(charData.strokes.length, 16);
+        let stepBoxesHtml = "";
+        for (let i = 1; i <= maxStepsShown; i++) {
+          stepBoxesHtml += `
+            <div style="width: 11.2mm; display: flex; flex-direction: column; align-items: center; border: 1px solid #d6d3d1; border-radius: 3px; background: #ffffff; padding: 1px;">
+              ${buildVisualArrowDiagramSVG(charData, { size: 32, showNumbers: false, showArrows: true, highlightUpTo: i, idPrefix: `ws1-s${i}` })}
+              <span style="font-size: 7pt; line-height: 1; color: #57534e; font-weight: 700;">${i}</span>
+            </div>
+          `;
+        }
+
+        // 24 Nine-Palace Grids: 4 rows x 6 columns
+        // Row 1: 6 dark red tracing; Row 2: 6 light grey tracing; Rows 3-4: 12 blank grids
+        let grid24Html = "";
+        for (let row = 0; row < 4; row++) {
+          const variant = row === 0 ? "dark-red" : (row === 1 ? "light-grey" : "blank");
+          for (let col = 0; col < 6; col++) {
+            grid24Html += `
+              <div style="width: 28.5mm; height: 28.5mm;">
+                ${buildWorksheetGridBoxSVG(charData, variant)}
+              </div>
+            `;
+          }
+        }
+
+        // 10 Vocabulary Words (2 rows x 5 columns)
+        const words10 = lex.words.slice(0, 10);
+        while (words10.length < 10) words10.push("—");
+        let vocabTableHtml = "";
+        words10.forEach((w, idx) => {
+          vocabTableHtml += `
+            <div style="border: 1px solid #d6d3d1; border-radius: 4px; padding: 2.2mm 2mm; text-align: center; background: #fafaf9;">
+              <span style="font-size: 7.5pt; color: #78716c; margin-right: 2px;">${idx + 1}.</span>
+              <span class="font-kai" style="font-size: 12pt; font-weight: 700; color: #1c1917;">${w}</span>
+            </div>
+          `;
+        });
+
+        container.innerHTML = `
+          <div style="width: 210mm; height: 297mm; padding: 10mm 12mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff;">
+            
+            <!-- Header -->
+            <div style="border-bottom: 2px solid #c83e37; padding-bottom: 2.5mm; display: flex; justify-content: space-between; align-items: flex-end;">
+              <div>
+                <div style="font-size: 15pt; font-weight: 800; color: #c83e37; letter-spacing: 0.5px;">香港小學學習字詞表 — 繁體中文筆順教學工作紙</div>
+                <div style="font-size: 8.5pt; color: #57534e; margin-top: 1px;">工作紙 1：標準教學工作紙（二十四格九宮格・適合 4–12 歲學童）</div>
+              </div>
+              <div style="font-size: 9.5pt; font-weight: 600; color: #1c1917; display: flex; gap: 5mm;">
+                <span>姓名：______________</span>
+                <span>班別：_______</span>
+                <span>日期：____月____日</span>
+              </div>
+            </div>
+
+            <!-- Visual Arrow Stroke Diagram + Radical/Jyutping/English Badge & Step-by-Step Mini Boxes -->
+            <div style="display: flex; gap: 4mm; align-items: stretch; border: 1.5px solid #e7e5e4; border-radius: 6px; padding: 3mm; background: #fffcfb;">
+              <div style="width: 34mm; height: 34mm; border: 1.5px solid #c83e37; border-radius: 6px; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                ${arrowDiagram}
+              </div>
+
+              <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 3mm; font-size: 9.5pt;">
+                  <span style="background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-weight: 700; padding: 1mm 2.5mm; border-radius: 4px;">
+                    生字：<span class="font-kai" style="font-size: 13pt;">${activeChar}</span>
+                  </span>
+                  <span style="background: #f5f5f4; border: 1px solid #e7e5e4; color: #1c1917; font-weight: 700; padding: 1mm 2.5mm; border-radius: 4px;">
+                    部首：${lex.radical}
+                  </span>
+                  <span style="background: #f5f5f4; border: 1px solid #e7e5e4; color: #1c1917; font-weight: 700; padding: 1mm 2.5mm; border-radius: 4px;">
+                    筆畫：${lex.strokes} 畫
+                  </span>
+                  <span style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-weight: 700; padding: 1mm 2.5mm; border-radius: 4px;">
+                    粵拼：${lex.jyutping}
+                  </span>
+                  <span style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-weight: 700; padding: 1mm 2.5mm; border-radius: 4px;">
+                    普通話：${lex.pinyin}
+                  </span>
+                </div>
+
+                <div style="font-size: 8.5pt; color: #44403c; margin: 1.2mm 0;">
+                  <strong>英文釋義：</strong>${lex.english}
+                </div>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 1.2mm;">
+                  ${stepBoxesHtml}
+                </div>
+              </div>
+            </div>
+
+            <!-- Example Sentence -->
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 5px; padding: 2mm 3.5mm; font-size: 10pt; color: #1c1917;">
+              <strong style="color: #92400e;">例句示範：</strong><span class="font-kai" style="font-size: 11.5pt;">${lex.sentence}</span>
+            </div>
+
+            <!-- 24 Nine-Palace Grids (4 rows x 6 columns) -->
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 8pt; color: #78716c; margin-bottom: 1.5mm;">
+                <span><strong>硬筆寫字練習（共 24 個九宮格）：</strong>第 1 行深紅描紅 → 第 2 行淺灰臨摹 → 第 3–4 行獨立書寫</span>
+                <span>坐姿端正・執筆正確</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(6, 28.5mm); gap: 2.6mm; justify-content: space-between;">
+                ${grid24Html}
+              </div>
+            </div>
+
+            <!-- Bottom Section: 常用詞語 (2 rows x 5 columns) + Encouragement Stars -->
+            <div style="border-top: 1.5px solid #e7e5e4; padding-top: 2.5mm;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2mm;">
+                <span style="font-size: 10pt; font-weight: 800; color: #c83e37;">常用詞語（兩行五列・適合 4–12 歲學童）</span>
+                <span style="font-size: 9.5pt; font-weight: 700; color: #57534e;">鼓勵星星：☆☆☆☆☆</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.2mm;">
+                ${vocabTableHtml}
+              </div>
+            </div>
+
+          </div>
+        `;
+      } else {
+        // WORKSHEET 2: Full-Page Large Practice Worksheet (24 Large Nine-Palace Grids: 6 rows x 4 cols)
+        const isMulti = multiMode && state.chars.length > 1;
+        const targetChars = isMulti ? state.chars.slice(0, 6) : [activeChar];
+
+        const dataMap = {};
+        for (const ch of targetChars) {
+          dataMap[ch] = await fetchTraditionalCharData(ch);
+        }
+
+        let refDiagramsHtml = "";
+        for (const ch of targetChars.slice(0, 4)) {
+          const d = dataMap[ch];
+          const lx = await resolveLexicalEntry(ch, d.strokes.length);
+          refDiagramsHtml += `
+            <div style="display: flex; align-items: center; gap: 2mm; border: 1px solid #fecaca; background: #fffcfb; border-radius: 5px; padding: 1.2mm 2mm;">
+              <div style="width: 16mm; height: 16mm; border: 1px solid #c83e37; border-radius: 4px; background: #fff;">
+                ${buildVisualArrowDiagramSVG(d, { size: 58, showNumbers: true, showArrows: true, idPrefix: `ws2-ref-${ch}` })}
+              </div>
+              <div style="font-size: 8pt; line-height: 1.35;">
+                <div style="font-weight: 800; color: #b91c1c;">部首：${lx.radical} (${d.strokes}畫)</div>
+                <div style="color: #166534; font-weight: 700;">粵拼：${lx.jyutping}</div>
+                <div style="color: #1e40af; font-weight: 600;">普通話：${lx.pinyin}</div>
+              </div>
+            </div>
+          `;
+        }
+
+        // 24 Large Nine-Palace Grids (6 rows x 4 columns)
+        let grid24LargeHtml = "";
+        if (!isMulti) {
+          // Single-character repetition:
+          // Row 1 = 4 dark red tracing; Rows 2-3 = 8 light grey tracing; Rows 4-6 = 12 blank nine-palace grids
+          const d = dataMap[activeChar];
+          for (let row = 0; row < 6; row++) {
+            const variant = row === 0 ? "dark-red" : (row <= 2 ? "light-grey" : "blank");
+            for (let col = 0; col < 4; col++) {
+              grid24LargeHtml += `
+                <div style="width: 41.5mm; height: 41.5mm;">
+                  ${buildWorksheetGridBoxSVG(d, variant)}
+                </div>
+              `;
+            }
+          }
+        } else {
+          // Multi-character proportional distribution across 6 rows x 4 columns = 24 grids
+          const n = targetChars.length;
+          const rowsPerChar = Math.max(1, Math.floor(6 / n));
+          let assignedRows = 0;
+
+          targetChars.forEach((ch, idx) => {
+            const d = dataMap[ch];
+            const countRows = idx === n - 1 ? (6 - assignedRows) : rowsPerChar;
+            for (let r = 0; r < countRows; r++) {
+              assignedRows++;
+              for (let col = 0; col < 4; col++) {
+                const variant = col === 0 ? "dark-red" : (col === 1 ? "light-grey" : "blank");
+                grid24LargeHtml += `
+                  <div style="width: 41.5mm; height: 41.5mm;">
+                    ${buildWorksheetGridBoxSVG(d, variant)}
+                  </div>
+                `;
+              }
+            }
+          });
+        }
+
+        container.innerHTML = `
+          <div style="width: 210mm; height: 297mm; padding: 8mm 12mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff;">
+            
+            <!-- Compact Name/Date Header + Visual Arrow Stroke Reference Box -->
+            <div style="border-bottom: 2px solid #c83e37; padding-bottom: 2mm; display: flex; justify-content: space-between; align-items: center; gap: 3mm;">
+              <div>
+                <div style="font-size: 13.5pt; font-weight: 800; color: #c83e37;">工作紙 2：全版練字工作紙（24大九宮格）</div>
+                <div style="font-size: 8.5pt; font-weight: 600; color: #1c1917; margin-top: 1.5mm;">
+                  姓名：____________ &nbsp; 班別：_____ &nbsp; 日期：___月___日
+                </div>
+              </div>
+              <div style="display: flex; gap: 2mm; flex-wrap: wrap; justify-content: flex-end;">
+                ${refDiagramsHtml}
+              </div>
+            </div>
+
+            <!-- 24 Large Nine-Palace Grids (6 rows x 4 columns) -->
+            <div style="display: grid; grid-template-columns: repeat(4, 41.5mm); gap: 3mm; justify-content: space-between; margin: auto 0;">
+              ${grid24LargeHtml}
+            </div>
+
+            <!-- Bottom Footer -->
+            <div style="border-top: 1px solid #e7e5e4; padding-top: 1.5mm; display: flex; justify-content: space-between; font-size: 8pt; color: #78716c;">
+              <span>香港小學學習字詞表 • 繁體中文硬筆書法全版練習</span>
+              <span>鼓勵星星：☆☆☆☆☆</span>
+            </div>
+
+          </div>
+        `;
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 9. WORKSHEET MODAL, STANDALONE PRINT WINDOW & CLIENT-SIDE A4 PDF GENERATOR
+     * ============================================================================
+     */
+    function adjustModalA4PreviewScale() {
+      const wrapper = document.getElementById("a4-preview-scale-wrapper");
+      if (!wrapper) return;
+      const availableWidth = window.innerWidth - 32;
+      const a4PxWidth = 794;
+      if (availableWidth < a4PxWidth) {
+        const scale = Math.max(0.4, availableWidth / a4PxWidth);
+        wrapper.style.transform = `scale(${scale})`;
+      } else {
+        wrapper.style.transform = "scale(1)";
+      }
+    }
+
+    async function openWorksheetModal(mode = "ws1", multiMode = false) {
+      state.activeWorksheetMode = mode;
+      state.ws2MultiMode = multiMode;
+
+      const btn1 = document.getElementById("modal-switch-ws1");
+      const btn2 = document.getElementById("modal-switch-ws2");
+      if (mode === "ws1") {
+        btn1.className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-900 shadow-xs transition cursor-pointer";
+        btn2.className = "px-3 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer";
+      } else {
+        btn2.className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-900 shadow-xs transition cursor-pointer";
+        btn1.className = "px-3 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer";
+      }
+
+      await renderWorksheetHTML(mode, multiMode);
+      const modal = document.getElementById("worksheet-modal");
+      modal.classList.remove("hidden");
+      adjustModalA4PreviewScale();
+    }
+
+    function openStandalonePrintWindow() {
+      const sheetHTML = document.getElementById("printable-a4-container").innerHTML;
+      const win = window.open("", "_blank", "width=900,height=1100");
+      if (!win) {
+        showToast("瀏覽器封鎖了彈出視窗，請允許彈出視窗或點擊「直接列印」", "⚠️");
+        return;
+      }
+
+      win.document.open();
+      win.document.write(`
+        <!DOCTYPE html>
+        <html lang="zh-Hant-HK">
+        <head>
+          <meta charset="UTF-8" />
+          <title>A4 繁體中文學習工作紙列印</title>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet" />
+          <style>
+            @page { size: A4 portrait; margin: 0; }
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            html, body {
+              width: 210mm;
+              height: 297mm;
+              margin: 0;
+              padding: 0;
+              background: #ffffff;
+              font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            }
+            .font-kai {
+              font-family: "DFKai-SB", "BiauKai", "標楷體", "Kaiti TC", "STKaiti", "Noto Serif TC", serif;
+            }
+          </style>
+        </head>
+        <body>
+          ${sheetHTML}
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.focus();
+                window.print();
+              }, 350);
+            };
+          <\/script>
+        </body>
+        </html>
+      `);
+      win.document.close();
+    }
+
+    async function downloadHighResA4PDF() {
+      const btn = document.getElementById("btn-download-a4-pdf");
+      const origHTML = btn.innerHTML;
+      btn.innerHTML = `<span>⏳</span><span>生成高清 A4 PDF 中...</span>`;
+      btn.disabled = true;
+
+      try {
+        const W = 1654; // 200 DPI A4 width
+        const H = 2339; // 200 DPI A4 height
+        const canvas = document.createElement("canvas");
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext("2d");
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, W, H);
+
+        const sheetEl = document.getElementById("printable-a4-container");
+        const clone = sheetEl.cloneNode(true);
+        clone.style.boxShadow = "none";
+        clone.style.margin = "0";
+
+        const svgWrapper = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 793.7 1122.5">
+            <foreignObject width="100%" height="100%">
+              <div xmlns="http://www.w3.org/1999/xhtml" style="width: 793.7px; height: 1122.5px; font-family: 'Noto Sans TC', 'Inter', sans-serif; background: #ffffff;">
+                <style>
+                  * { box-sizing: border-box; }
+                  .font-kai { font-family: "DFKai-SB", "BiauKai", "標楷體", "Kaiti TC", "STKaiti", "Noto Serif TC", serif; }
+                </style>
+                ${clone.innerHTML}
+              </div>
+            </foreignObject>
+          </svg>
+        `;
+
+        const svgBlob = new Blob([svgWrapper], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = url;
+        });
+
+        ctx.drawImage(img, 0, 0, W, H);
+        URL.revokeObjectURL(url);
+
+        const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.94);
+        const base64Data = jpegDataUrl.split(",")[1];
+        const binaryString = atob(base64Data);
+        const imgBytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          imgBytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const pdfBlob = buildSinglePageA4PDFBlob(imgBytes, W, H);
+        const downloadUrl = URL.createObjectURL(pdfBlob);
+        const a = document.createElement("a");
+        const activeChar = state.chars[state.activeIndex];
+        const wsLabel = state.activeWorksheetMode === "ws1" ? "工作紙1_標準教學" : "工作紙2_全版九宮格";
+        a.href = downloadUrl;
+        a.download = `香港小學學習字詞表_${activeChar}_${wsLabel}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 2000);
+
+        showToast("高清單頁 A4 PDF 工作紙已下載！", "📥");
+      } catch (err) {
+        showToast("已為您開啟獨立列印視窗（可直接在列印對話框儲存為 PDF）", "🪟");
+        openStandalonePrintWindow();
+      } finally {
+        btn.innerHTML = origHTML;
+        btn.disabled = false;
+      }
+    }
+
+    function buildSinglePageA4PDFBlob(jpegBytes, imgWidth, imgHeight) {
+      const encoder = new TextEncoder();
+      const chunks = [];
+      const offsets = [0];
+      let byteLength = 0;
+
+      const writeStr = (str) => {
+        const bytes = encoder.encode(str);
+        chunks.push(bytes);
+        byteLength += bytes.length;
+      };
+      const writeBytes = (bytes) => {
+        chunks.push(bytes);
+        byteLength += bytes.length;
+      };
+
+      writeStr("%PDF-1.4\n");
+
+      offsets.push(byteLength);
+      writeStr("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+
+      offsets.push(byteLength);
+      writeStr("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+
+      offsets.push(byteLength);
+      writeStr("3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im0 4 0 R >> >> /MediaBox [0 0 595.28 841.89] /Contents 5 0 R >>\nendobj\n");
+
+      offsets.push(byteLength);
+      writeStr(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imgWidth} /Height ${imgHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`);
+      writeBytes(jpegBytes);
+      writeStr("\nendstream\nendobj\n");
+
+      const contentStream = "q 595.28 0 0 841.89 0 0 cm /Im0 Do Q";
+      offsets.push(byteLength);
+      writeStr(`5 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
+
+      const xrefOffset = byteLength;
+      writeStr(`xref\n0 ${offsets.length}\n`);
+      writeStr("0000000000 65535 f \n");
+      for (let i = 1; i < offsets.length; i++) {
+        writeStr(`${String(offsets[i]).padStart(10, "0")} 00000 n \n`);
+      }
+
+      writeStr(`trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+      return new Blob(chunks, { type: "application/pdf" });
+    }
+
+    /**
+     * ============================================================================
+     * 10. SEARCH BAR, QUICK-SELECT PILLS & EVENT INITIALIZATION
+     * ============================================================================
+     */
+    function showToast(msg, icon = "✨") {
+      const banner = document.getElementById("toast-banner");
+      document.getElementById("toast-icon").textContent = icon;
+      document.getElementById("toast-msg").textContent = msg;
+
+      banner.classList.remove("hidden");
+      requestAnimationFrame(() => {
+        banner.classList.remove("translate-y-4", "opacity-0");
       });
 
-      document.getElementById('btn-open-worksheet-modal').addEventListener('click', () => openWorksheetModal());
-      document.getElementById('btn-print-popup-window').addEventListener('click', printInPopupWindow);
-      document.getElementById('btn-download-a4-pdf').addEventListener('click', downloadHighResA4Pdf);
-      document.getElementById('btn-print-current-page').addEventListener('click', printCurrentPage);
-      document.getElementById('btn-close-worksheet-modal').addEventListener('click', () => {
-        document.getElementById('worksheet-preview-modal').classList.add('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        banner.classList.add("translate-y-4", "opacity-0");
+        setTimeout(() => banner.classList.add("hidden"), 300);
+      }, 3200);
+    }
+
+    function setSearchCharacters(rawInput) {
+      const hanChars = Array.from(rawInput || "").filter(ch => /[\u4e00-\u9fff]/.test(ch));
+      if (hanChars.length === 0) {
+        showToast("請輸入有效的繁體中文字（例如：張、晴、濬、快樂）", "⚠️");
+        return;
+      }
+
+      state.chars = hanChars;
+      state.activeIndex = 0;
+      document.getElementById("char-search-input").value = hanChars.join("");
+
+      renderMultiCharBar();
+      loadCharacterIntoWorkspace(state.chars[0]);
+    }
+
+    function renderMultiCharBar() {
+      const bar = document.getElementById("multi-char-bar");
+      const tabs = document.getElementById("multi-char-tabs");
+
+      if (state.chars.length <= 1) {
+        bar.classList.add("hidden");
+        return;
+      }
+
+      bar.classList.remove("hidden");
+      tabs.innerHTML = "";
+      state.chars.forEach((ch, idx) => {
+        const btn = document.createElement("button");
+        const active = idx === state.activeIndex;
+        btn.textContent = ch;
+        btn.className = active
+          ? "w-8 h-8 rounded-lg bg-[#c83e37] text-white font-kai font-bold text-base shadow-xs cursor-pointer"
+          : "w-8 h-8 rounded-lg bg-white border border-amber-300 text-stone-800 hover:bg-amber-100 font-kai font-bold text-base cursor-pointer";
+        btn.addEventListener("click", () => {
+          state.activeIndex = idx;
+          renderMultiCharBar();
+          loadCharacterIntoWorkspace(ch);
+        });
+        tabs.appendChild(btn);
       });
-      document.getElementById('worksheet-preview-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'worksheet-preview-modal') {
-          document.getElementById('worksheet-preview-modal').classList.add('hidden');
-        }
+    }
+
+    function initQuickPills() {
+      const container = document.getElementById("quick-pills-container");
+      QUICK_PILLS.forEach(item => {
+        const btn = document.createElement("button");
+        btn.textContent = item;
+        btn.className = "px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-red-50 hover:text-[#c83e37] border border-transparent hover:border-red-200 text-xs font-bold text-stone-700 shrink-0 transition cursor-pointer";
+        btn.addEventListener("click", () => setSearchCharacters(item));
+        container.appendChild(btn);
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      initQuickPills();
+      refreshVoiceStatusIndicator();
+
+      const searchInput = document.getElementById("char-search-input");
+      searchInput.value = "張";
+      document.getElementById("search-submit-btn").addEventListener("click", () => {
+        setSearchCharacters(searchInput.value);
+      });
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") setSearchCharacters(searchInput.value);
+      });
+      document.getElementById("clear-search-btn").addEventListener("click", () => {
+        searchInput.value = "";
+        searchInput.focus();
       });
 
-      // 初始化啟動
-      detectSystemVoices();
-      renderCanvasGrid('nine');
-      handleSearchInput('張');
+      // Grid Overlay Toggle
+      document.querySelectorAll(".grid-mode-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.gridMode = btn.dataset.grid;
+          document.querySelectorAll(".grid-mode-btn").forEach(b => {
+            b.className = "grid-mode-btn px-2.5 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer";
+          });
+          btn.className = "grid-mode-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-[#c83e37] shadow-xs transition cursor-pointer";
+
+          const frame = document.getElementById("canvas-frame");
+          frame.classList.remove("grid-jiugong", "grid-tianzige", "grid-blank");
+          frame.classList.add(`grid-${state.gridMode}`);
+        });
+      });
+
+      // Speed Selector
+      document.querySelectorAll(".speed-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.speed = parseFloat(btn.dataset.speed);
+          document.querySelectorAll(".speed-btn").forEach(b => {
+            b.className = "speed-btn px-2.5 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer";
+          });
+          btn.className = "speed-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-900 shadow-xs transition cursor-pointer";
+          loadCharacterIntoWorkspace(state.chars[state.activeIndex]);
+        });
+      });
+
+      // Outline Toggle
+      document.getElementById("btn-canvas-outline-toggle").addEventListener("click", () => {
+        if (!state.writer) return;
+        state.showOutline = !state.showOutline;
+        if (state.showOutline) state.writer.showOutline();
+        else state.writer.hideOutline();
+      });
+
+      // Playback, Step, Reset & Quiz Controls
+      document.getElementById("btn-play-pause").addEventListener("click", togglePlayPauseAnimation);
+      document.getElementById("btn-prev-stroke").addEventListener("click", () => jumpToStrokeStep(state.currentStrokeStep - 1));
+      document.getElementById("btn-next-stroke").addEventListener("click", () => jumpToStrokeStep(state.currentStrokeStep + 1));
+      document.getElementById("btn-reset-canvas").addEventListener("click", resetCanvasState);
+      document.getElementById("btn-quiz-toggle").addEventListener("click", toggleHandwritingQuiz);
+
+      document.getElementById("btn-stroke-hint").addEventListener("click", () => {
+        if (!state.writer || !state.isQuizMode) return;
+        state.writer.highlightStroke(state.currentStrokeStep);
+      });
+
+      // Audio Pronunciation Buttons
+      document.getElementById("speak-cantonese-btn").addEventListener("click", () => {
+        speakText(state.chars[state.activeIndex], "zh-HK");
+      });
+      document.getElementById("speak-mandarin-btn").addEventListener("click", () => {
+        speakText(state.chars[state.activeIndex], "zh-TW");
+      });
+      document.getElementById("speak-sentence-hk-btn").addEventListener("click", () => {
+        speakText(document.getElementById("meta-sentence").textContent, "zh-HK");
+      });
+      document.getElementById("speak-sentence-tw-btn").addEventListener("click", () => {
+        speakText(document.getElementById("meta-sentence").textContent, "zh-TW");
+      });
+
+      // Worksheet Modal Triggers
+      document.getElementById("open-ws1-btn").addEventListener("click", () => openWorksheetModal("ws1", false));
+      document.getElementById("open-ws2-btn").addEventListener("click", () => openWorksheetModal("ws2", false));
+      document.getElementById("open-ws2-multi-btn").addEventListener("click", () => openWorksheetModal("ws2", true));
+
+      document.getElementById("modal-switch-ws1").addEventListener("click", () => openWorksheetModal("ws1", false));
+      document.getElementById("modal-switch-ws2").addEventListener("click", () => openWorksheetModal("ws2", state.chars.length > 1));
+      document.getElementById("close-worksheet-modal").addEventListener("click", () => {
+        document.getElementById("worksheet-modal").classList.add("hidden");
+      });
+
+      // Print & PDF Download Outputs
+      document.getElementById("btn-standalone-print-win").addEventListener("click", openStandalonePrintWindow);
+      document.getElementById("btn-download-a4-pdf").addEventListener("click", downloadHighResA4PDF);
+      document.getElementById("btn-direct-window-print").addEventListener("click", () => window.print());
+
+      window.addEventListener("resize", adjustModalA4PreviewScale);
+
+      // Load default character "張"
+      loadCharacterIntoWorkspace("張");
     });
   </script>
 </body>
