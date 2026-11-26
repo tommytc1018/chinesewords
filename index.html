@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>香港小學學習字詞表 — 繁體中文筆順與寫字練習系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Primary & Fallback HanziWriter Loader -->
+  <!-- HanziWriter with Dual-CDN Fallback -->
   <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/hanzi-writer@3.5/dist/hanzi-writer.min.js';"></script>
+  <!-- html2canvas & jsPDF for WYSIWYG 300 DPI Single-Page A4 PDF Export -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js';"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js';"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet" />
@@ -29,7 +32,7 @@
       font-family: "DFKai-SB", "BiauKai", "標楷體", "Kaiti TC", "STKaiti", "Noto Serif TC", serif;
     }
 
-    /* Prevent page scrolling when drawing strokes on touch devices */
+    /* Touch-safe interactive drawing surface */
     #hanzi-writer-target {
       touch-action: none;
       user-select: none;
@@ -60,7 +63,7 @@
       background-color: #ffffff;
     }
 
-    /* Flash error animation on mistake */
+    /* Mistake Shake & Red Flash Feedback */
     @keyframes shakeError {
       0%, 100% { transform: translateX(0); box-shadow: inset 0 0 0 0 rgba(220, 38, 38, 0); }
       25% { transform: translateX(-5px); box-shadow: inset 0 0 24px rgba(220, 38, 38, 0.35); }
@@ -74,7 +77,7 @@
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* Single-Page A4 Printable Sheet Strict Dimensions (210mm x 297mm) */
+    /* Strict Single-Page A4 Portrait Sheet (210mm x 297mm) */
     .a4-sheet {
       width: 210mm;
       height: 297mm;
@@ -86,7 +89,7 @@
       color: #111827;
       margin: 0 auto;
       position: relative;
-      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
     }
 
     @media print {
@@ -106,10 +109,10 @@
       body * {
         visibility: hidden;
       }
-      #printable-a4-container, #printable-a4-container * {
+      #print-area, #print-area * {
         visibility: visible;
       }
-      #printable-a4-container {
+      #print-area {
         position: fixed !important;
         left: 0 !important;
         top: 0 !important;
@@ -126,7 +129,7 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- Toast Notification Banner (Never uses alert() or confirm()) -->
+  <!-- Toast Notification Banner (No alert() or confirm()) -->
   <div id="toast-banner" class="fixed bottom-5 right-5 z-50 hidden transform transition-all duration-300 translate-y-4 opacity-0">
     <div class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg bg-stone-900 text-white text-sm font-medium border border-stone-700">
       <span id="toast-icon">✨</span>
@@ -134,11 +137,11 @@
     </div>
   </div>
 
-  <!-- Top Navigation Header -->
+  <!-- Top Navigation & Search Bar -->
   <header class="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <!-- Brand & Title -->
+        <!-- App Brand -->
         <div class="flex items-center gap-3">
           <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-[#c83e37] to-[#991b1b] text-white flex items-center justify-center shadow-sm shrink-0">
             <span class="font-kai text-2xl font-bold">張</span>
@@ -148,17 +151,18 @@
               <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-stone-900">香港小學學習字詞表</h1>
               <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-red-50 text-[#c83e37] border border-red-200">繁體中文 4–12歲</span>
             </div>
-            <p class="text-xs text-stone-500">繁體中文筆順動畫、粵普雙語發音及單頁 A4 練字工作紙系統</p>
+            <p class="text-xs text-stone-500">繁體中文筆順與寫字練習系統・粵普雙語發音及單頁 A4 練字工作紙</p>
           </div>
         </div>
 
-        <!-- Character Search Bar -->
+        <!-- Character Search Input -->
         <div class="flex items-center gap-2 w-full md:w-auto">
           <div class="relative flex-1 md:w-72">
             <input
               id="char-search-input"
               type="text"
               maxlength="12"
+              value="張"
               placeholder="輸入繁體字或詞語 (預設：張)"
               class="w-full pl-3.5 pr-9 py-2.5 rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#c83e37]/40 focus:border-[#c83e37] text-sm font-medium text-stone-900 transition"
             />
@@ -179,7 +183,7 @@
         </div>
       </div>
 
-      <!-- Quick-Select Pills Bar -->
+      <!-- Quick-Select Character/Word Pills Bar -->
       <div class="mt-3 pt-2.5 border-t border-stone-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
         <span class="text-xs font-bold text-stone-500 shrink-0">精選字詞：</span>
         <div id="quick-pills-container" class="flex items-center gap-1.5"></div>
@@ -187,7 +191,7 @@
     </div>
   </header>
 
-  <!-- Multi-Character Switcher Bar (Shown when multiple characters are entered) -->
+  <!-- Multi-Character Switcher Bar (Appears when multiple characters are entered) -->
   <div id="multi-char-bar" class="hidden bg-amber-50 border-b border-amber-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2 flex-wrap">
@@ -204,13 +208,13 @@
     </div>
   </div>
 
-  <!-- Main Interactive Learning Workspace -->
+  <!-- Main Two-Column Learning Workspace -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
       <!-- LEFT COLUMN (5 cols): Interactive Stroke-Order & Handwriting Practice Canvas -->
       <section class="lg:col-span-5 bg-white rounded-2xl border border-stone-200/90 shadow-sm p-5 flex flex-col gap-4">
-        <!-- Grid Overlay Toggles & Speed Selector -->
+        <!-- Grid Mode & Speed Selector -->
         <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100">
           <div class="inline-flex rounded-xl bg-stone-100 p-1" role="group">
             <button data-grid="jiugong" class="grid-mode-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-[#c83e37] shadow-xs transition cursor-pointer">九宮格</button>
@@ -225,44 +229,44 @@
           </div>
         </div>
 
-        <!-- Canvas Stage -->
+        <!-- Interactive Stroke Canvas Box -->
         <div class="relative flex flex-col items-center justify-center">
           <div
             id="canvas-frame"
             class="grid-jiugong relative rounded-2xl shadow-inner flex items-center justify-center overflow-hidden transition-all"
             style="width: 280px; height: 280px;"
           >
-            <!-- Loading Spinner Overlay -->
+            <!-- Loading Overlay -->
             <div id="writer-loader" class="absolute inset-0 bg-white/90 backdrop-blur-xs flex flex-col items-center justify-center z-20 hidden">
               <div class="w-8 h-8 border-3 border-[#c83e37] border-t-transparent rounded-full animate-spin"></div>
               <span class="mt-2 text-xs font-bold text-stone-600">載入繁體筆順資料中...</span>
             </div>
 
-            <!-- HanziWriter SVG Target -->
-            <div id="hanzi-writer-target" class="w-[260px] h-[260px]"></div>
+            <!-- HanziWriter or Offline SVG Fallback Target -->
+            <div id="hanzi-writer-target" class="w-[260px] h-[260px] flex items-center justify-center"></div>
 
-            <!-- Stroke Counter Badge -->
+            <!-- Stroke Progress Counter -->
             <div class="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-stone-900/80 text-white text-xs font-bold backdrop-blur-xs pointer-events-none">
               筆順：<span id="stroke-progress-label">0 / 0</span>
             </div>
 
-            <!-- Outline Toggle Button Inside Top-Right Corner -->
+            <!-- Outline Visibility Toggle -->
             <button
               id="btn-canvas-outline-toggle"
-              class="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-white/90 hover:bg-white border border-stone-300 text-stone-700 text-xs font-bold shadow-2xs transition cursor-pointer"
+              class="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-white/95 hover:bg-white border border-stone-300 text-stone-700 text-xs font-bold shadow-2xs transition cursor-pointer"
               title="顯示或隱藏字影底稿"
             >
               👁️ 字影
             </button>
           </div>
 
-          <!-- Interactive Quiz & Animation Status Bar -->
+          <!-- Feedback Status Bar -->
           <div id="quiz-feedback-bar" class="mt-3 w-full text-center text-xs font-semibold py-2 px-3 rounded-xl bg-stone-100 text-stone-700">
             點擊「筆順演示」觀看動態寫法，或點擊「寫字練習」在格內書寫
           </div>
         </div>
 
-        <!-- Primary Playback & Step Controls -->
+        <!-- Playback & Step Controls -->
         <div class="grid grid-cols-5 gap-1.5">
           <button
             id="btn-prev-stroke"
@@ -303,7 +307,7 @@
           </button>
         </div>
 
-        <!-- Quiz Helper Bar (Hint Next Stroke) -->
+        <!-- Quiz Hint Button -->
         <div id="quiz-helper-row" class="hidden">
           <button
             id="btn-stroke-hint"
@@ -313,7 +317,7 @@
           </button>
         </div>
 
-        <!-- Visual-Only Stroke-Order Arrow Diagram (Red start numbers + Blue dashed arrows) -->
+        <!-- Visual-Only Stroke-Order Arrow Diagram -->
         <div class="pt-3 border-t border-stone-100">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-bold text-stone-700">視覺筆順箭頭圖解（紅點起筆序號・藍虛線運筆方向）</span>
@@ -332,7 +336,7 @@
         <!-- Character Lexical & Pronunciation Card -->
         <div class="bg-white rounded-2xl border border-stone-200/90 shadow-sm p-5 sm:p-6">
           <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-5 border-b border-stone-100">
-            <!-- Glyph + Metadata -->
+            <!-- Character Glyph + Metadata -->
             <div class="flex items-center gap-4">
               <div class="w-20 h-20 rounded-2xl bg-[#faf6f0] border-2 border-[#c83e37]/30 flex items-center justify-center shrink-0">
                 <span id="display-char-glyph" class="font-kai text-5xl font-bold text-stone-900">張</span>
@@ -350,7 +354,7 @@
                   </span>
                 </div>
 
-                <!-- Cantonese & Mandarin Audio Controls -->
+                <!-- Cantonese & Mandarin Pronunciation Buttons -->
                 <div class="flex flex-wrap items-center gap-2.5 mt-2">
                   <div class="flex items-center gap-1.5 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
                     <span class="text-xs font-bold text-stone-500">粵拼</span>
@@ -380,26 +384,26 @@
               </div>
             </div>
 
-            <!-- Dual-Mode A4 Worksheet Buttons -->
+            <!-- Dual-Mode A4 Worksheet Triggers -->
             <div class="flex sm:flex-col gap-2 shrink-0">
               <button
                 id="open-ws1-btn"
                 class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <span>📄</span>
-                <span>工作紙 1：標準教學 (24九宮格)</span>
+                <span>工作紙 1：標準教學 (24格九宮格)</span>
               </button>
               <button
                 id="open-ws2-btn"
                 class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#2b6e5c] hover:bg-[#225849] active:scale-[0.98] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <span>📝</span>
-                <span>工作紙 2：全版練字 (24大九宮格)</span>
+                <span>工作紙 2：全版練字 (24格大九宮格)</span>
               </button>
             </div>
           </div>
 
-          <!-- English Meaning & Age-Appropriate Example Sentence (4-12 years) -->
+          <!-- English Meaning & Age-Appropriate Example Sentence (4–12 Years Old) -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
             <div class="p-3.5 rounded-xl bg-stone-50 border border-stone-200/80">
               <div class="text-xs font-bold text-stone-400 uppercase tracking-wider mb-1">英文釋義 English Meaning</div>
@@ -441,7 +445,7 @@
     </div>
   </main>
 
-  <!-- A4 Printable Worksheet Modal Preview -->
+  <!-- Dual-Mode A4 Printable Worksheet Modal -->
   <div id="worksheet-modal" class="fixed inset-0 z-50 hidden bg-stone-900/75 backdrop-blur-xs flex flex-col">
     <!-- Modal Top Controls -->
     <div class="bg-white border-b border-stone-200 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-sm">
@@ -449,22 +453,16 @@
         <span class="px-2.5 py-1 rounded-lg bg-red-50 text-[#c83e37] font-extrabold text-xs border border-red-200">單頁 A4 精準排版 (210mm × 297mm)</span>
         <div class="inline-flex rounded-xl bg-stone-100 p-1">
           <button id="modal-switch-ws1" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-stone-900 shadow-xs transition cursor-pointer">
-            工作紙 1：標準教學工作紙 (24九宮格)
+            工作紙 1：標準教學工作紙 (24格九宮格)
           </button>
           <button id="modal-switch-ws2" class="px-3 py-1.5 rounded-lg text-xs font-bold text-stone-600 hover:text-stone-900 transition cursor-pointer">
-            工作紙 2：全版練字工作紙 (24大九宮格)
+            工作紙 2：全版練字工作紙 (24格大九宮格)
           </button>
         </div>
       </div>
 
-      <!-- Output & Close Buttons -->
+      <!-- Three Export Actions & Close -->
       <div class="flex flex-wrap items-center gap-2">
-        <button
-          id="btn-standalone-print-win"
-          class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-        >
-          <span>🪟</span><span>獨立列印視窗</span>
-        </button>
         <button
           id="btn-download-a4-pdf"
           class="px-3.5 py-2 rounded-xl bg-[#c83e37] hover:bg-[#b0322b] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
@@ -472,10 +470,16 @@
           <span>📥</span><span>下載高清 A4 PDF</span>
         </button>
         <button
+          id="btn-standalone-print-win"
+          class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+        >
+          <span>🪟</span><span>開啟獨立列印視窗</span>
+        </button>
+        <button
           id="btn-direct-window-print"
           class="px-3.5 py-2 rounded-xl bg-[#2b6e5c] hover:bg-[#225849] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
         >
-          <span>🖨️</span><span>直接列印</span>
+          <span>🖨️</span><span>直接列印當前頁</span>
         </button>
         <button
           id="close-worksheet-modal"
@@ -486,20 +490,18 @@
       </div>
     </div>
 
-    <!-- Scrollable Scaled A4 Preview Area -->
+    <!-- Scaled Single-Page A4 Preview Viewport -->
     <div class="flex-1 overflow-auto p-4 sm:p-8 flex justify-center items-start bg-stone-800/40">
       <div id="a4-preview-scale-wrapper" class="origin-top transition-transform">
-        <div id="printable-a4-container" class="a4-sheet"></div>
+        <div id="print-area" class="a4-sheet"></div>
       </div>
     </div>
   </div>
 
-  <!-- Application Script -->
   <script>
     /**
      * ============================================================================
-     * 1. BUILT-IN HONG KONG EDB CHARACTER DICTIONARY (48+ Authentic Characters)
-     *    Tailored for ages 4-12 (K1-P6 level) with 10 authentic compounds each.
+     * 1. BUILT-IN HONG KONG PRIMARY CHARACTER DICTIONARY (48+ Characters, Ages 4-12)
      * ============================================================================
      */
     const LOCAL_DICT = {
@@ -809,11 +811,13 @@
       gridMode: "jiugong",        // 'jiugong' | 'tianzige' | 'blank'
       speed: 1.1,
       writer: null,
+      usingFallbackRenderer: false,
       charDataCache: {},
       lexicalCache: {},
       currentStrokeStep: 0,
       totalStrokes: 0,
       isPlaying: false,
+      animTimer: null,
       isQuizMode: false,
       showOutline: true,
       activeWorksheetMode: "ws1", // 'ws1' | 'ws2'
@@ -849,13 +853,12 @@
 
     /**
      * ============================================================================
-     * 3. LIVE WIKTIONARY API LEXICAL LOOKUP (Suitable for Ages 4-12, 2-4 Chars)
+     * 3. LIVE WIKTIONARY API LEXICAL LOOKUP (Ages 4-12, 2-4 Chars)
      * ============================================================================
      */
     function isAgeAppropriateCompound(word, targetChar) {
       if (!/^[\u4e00-\u9fff]{2,4}$/.test(word)) return false;
       if (!word.includes(targetChar)) return false;
-      // Filter out archaic / inappropriate characters for ages 4-12
       if (/[死殺鬼屍淫毒賭賊妓妖魔]/.test(word)) return false;
       return true;
     }
@@ -931,7 +934,6 @@
         if (indicator) indicator.classList.add("hidden");
       }
 
-      // Prioritize 2-character compounds first (easier for 4-12 year olds), then 3-4 character idioms
       authenticWords = Array.from(new Set(authenticWords))
         .sort((a, b) => a.length - b.length)
         .slice(0, 10);
@@ -955,9 +957,6 @@
     /**
      * ============================================================================
      * 4. HONG KONG CANTONESE (zh-HK) & MANDARIN (zh-TW) AUDIO ENGINE
-     *    - Global utterance array retention prevents GC cutoff
-     *    - Async voiceschanged loading & AudioContext unlock
-     *    - Reliable Cloud TTS audio fallback
      * ============================================================================
      */
     window.__utterancePool = [];
@@ -1077,7 +1076,6 @@
         window.speechSynthesis.cancel();
 
         const voice = selectBestVoice(targetLang);
-        // Never substitute Mandarin when Hong Kong Cantonese is requested
         if (targetLang === "zh-HK" && !voice) {
           playCloudTTSFallback(text, "zh-HK");
           return;
@@ -1115,10 +1113,8 @@
      * ============================================================================
      * 5. VISUAL-ONLY STROKE-ORDER ARROW DIAGRAM GENERATOR
      *    - Inverted coordinate transform: transform="translate(0, 900) scale(1, -1)"
-     *    - Hollow stroke outlines
-     *    - Red stroke-starting numbers (1, 2, 3...) at each stroke's initial point
-     *    - Blue dashed directional arrows inside strokes
-     *    - Zero text descriptions of stroke order
+     *    - Hollow stroke outlines, red stroke starting numbers (1, 2, 3...),
+     *      and blue dashed directional arrows inside strokes
      * ============================================================================
      */
     function buildVisualArrowDiagramSVG(charData, options = {}) {
@@ -1158,14 +1154,12 @@
 
       let pathsHtml = `<g transform="translate(0, 900) scale(1, -1)">`;
 
-      // Ghost remaining strokes for progressive step boxes
       if (highlightUpTo !== null) {
         for (let i = limit; i < strokes.length; i++) {
           pathsHtml += `<path d="${strokes[i]}" fill="#f3f4f6" stroke="#e5e7eb" stroke-width="10" />`;
         }
       }
 
-      // Hollow stroke outlines
       for (let i = 0; i < limit; i++) {
         const isCurrent = highlightUpTo !== null && i === limit - 1;
         const fillCol = highlightUpTo !== null ? (isCurrent ? "#fee2e2" : "#e5e7eb") : "#ffffff";
@@ -1173,7 +1167,6 @@
         pathsHtml += `<path d="${strokes[i]}" fill="${fillCol}" stroke="${strokeCol}" stroke-width="16" stroke-linejoin="round" />`;
       }
 
-      // Blue dashed directional arrows along stroke medians
       if (showArrows) {
         const startIdx = highlightUpTo !== null ? Math.max(0, limit - 1) : 0;
         for (let i = startIdx; i < limit; i++) {
@@ -1198,7 +1191,6 @@
 
       pathsHtml += `</g>`;
 
-      // Red stroke-starting numbers (1, 2, 3...)
       let numbersHtml = "";
       if (showNumbers && highlightUpTo === null) {
         for (let i = 0; i < limit; i++) {
@@ -1226,9 +1218,6 @@
       `;
     }
 
-    /**
-     * Generates a Nine-Palace SVG Box for A4 Worksheets ('dark-red' | 'light-grey' | 'blank')
-     */
     function buildWorksheetGridBoxSVG(charData, variant = "blank") {
       let glyphHtml = "";
       if (charData && charData.strokes && variant !== "blank") {
@@ -1254,13 +1243,29 @@
 
     /**
      * ============================================================================
-     * 6. INTERACTIVE HANZIWRITER CONTROLLER & HANDWRITING QUIZ
+     * 6. INTERACTIVE HANZIWRITER CONTROLLER & PURE SVG OFFLINE FALLBACK
      * ============================================================================
      */
+    function renderPureSVGFallbackCanvas(charData, visibleStrokes, showOutline) {
+      const target = document.getElementById("hanzi-writer-target");
+      let paths = `<g transform="translate(0, 900) scale(1, -1)">`;
+      if (showOutline) {
+        for (const d of charData.strokes) {
+          paths += `<path d="${d}" fill="#e7e5e4" />`;
+        }
+      }
+      for (let i = 0; i < visibleStrokes; i++) {
+        paths += `<path d="${charData.strokes[i]}" fill="#1c1917" />`;
+      }
+      paths += `</g>`;
+      target.innerHTML = `<svg viewBox="0 0 1024 1024" width="260" height="260" xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
+    }
+
     async function loadCharacterIntoWorkspace(char) {
       const loader = document.getElementById("writer-loader");
       loader.classList.remove("hidden");
 
+      clearInterval(state.animTimer);
       state.isPlaying = false;
       state.isQuizMode = false;
       state.showOutline = true;
@@ -1275,27 +1280,34 @@
         const target = document.getElementById("hanzi-writer-target");
         target.innerHTML = "";
 
-        state.writer = HanziWriter.create(target, char, {
-          width: 260,
-          height: 260,
-          padding: 14,
-          showOutline: true,
-          showCharacter: true,
-          strokeAnimationSpeed: state.speed,
-          delayBetweenStrokes: Math.max(120, Math.round(320 / state.speed)),
-          strokeColor: "#1c1917",
-          radicalColor: "#c83e37",
-          outlineColor: "#e7e5e4",
-          highlightColor: "#2563eb",
-          drawingColor: "#c83e37",
-          drawingWidth: 26,
-          showHintAfterMisses: 2,
-          charDataLoader: (c, onComplete) => onComplete(charData)
-        });
+        if (typeof window.HanziWriter !== "undefined") {
+          state.usingFallbackRenderer = false;
+          state.writer = window.HanziWriter.create(target, char, {
+            width: 260,
+            height: 260,
+            padding: 14,
+            showOutline: true,
+            showCharacter: true,
+            strokeAnimationSpeed: state.speed,
+            delayBetweenStrokes: Math.max(120, Math.round(320 / state.speed)),
+            strokeColor: "#1c1917",
+            radicalColor: "#c83e37",
+            outlineColor: "#e7e5e4",
+            highlightColor: "#2563eb",
+            drawingColor: "#c83e37",
+            drawingWidth: 26,
+            showHintAfterMisses: 2,
+            charDataLoader: (c, onComplete) => onComplete(charData)
+          });
+        } else {
+          state.usingFallbackRenderer = true;
+          state.writer = null;
+          renderPureSVGFallbackCanvas(charData, state.totalStrokes, true);
+        }
 
         updateStrokeCounterLabel(state.totalStrokes, state.totalStrokes);
 
-        // Render Visual-Only Stroke-Order Arrow Diagram + Progressive Step Mini Boxes
+        // Render Visual-Only Stroke-Order Arrow Diagram + Progressive Step Mini Strip
         document.getElementById("diagram-stroke-count").textContent = `共 ${state.totalStrokes} 畫`;
         document.getElementById("main-arrow-svg-box").innerHTML = buildVisualArrowDiagramSVG(charData, {
           size: 86,
@@ -1364,6 +1376,35 @@
     }
 
     function togglePlayPauseAnimation() {
+      const activeChar = state.chars[state.activeIndex];
+      const charData = state.charDataCache[activeChar];
+      if (!charData) return;
+
+      if (state.usingFallbackRenderer) {
+        if (state.isPlaying) {
+          clearInterval(state.animTimer);
+          state.isPlaying = false;
+          updatePlayPauseUI();
+          return;
+        }
+        state.isPlaying = true;
+        updatePlayPauseUI();
+        let step = 0;
+        renderPureSVGFallbackCanvas(charData, 0, state.showOutline);
+        state.animTimer = setInterval(() => {
+          step++;
+          state.currentStrokeStep = step;
+          renderPureSVGFallbackCanvas(charData, step, state.showOutline);
+          updateStrokeCounterLabel(step, state.totalStrokes);
+          if (step >= state.totalStrokes) {
+            clearInterval(state.animTimer);
+            state.isPlaying = false;
+            updatePlayPauseUI();
+          }
+        }, Math.round(500 / state.speed));
+        return;
+      }
+
       if (!state.writer) return;
       if (state.isQuizMode) {
         state.writer.cancelQuiz();
@@ -1390,8 +1431,12 @@
     }
 
     function jumpToStrokeStep(targetStep) {
-      if (!state.writer || state.totalStrokes === 0) return;
-      if (state.isQuizMode) {
+      const activeChar = state.chars[state.activeIndex];
+      const charData = state.charDataCache[activeChar];
+      if (!charData || state.totalStrokes === 0) return;
+
+      clearInterval(state.animTimer);
+      if (state.isQuizMode && state.writer) {
         state.writer.cancelQuiz();
         state.isQuizMode = false;
         updateQuizUI();
@@ -1401,18 +1446,26 @@
 
       const clamped = Math.max(0, Math.min(state.totalStrokes, targetStep));
       state.currentStrokeStep = clamped;
+      updateStrokeCounterLabel(clamped, state.totalStrokes);
+
+      if (state.usingFallbackRenderer) {
+        renderPureSVGFallbackCanvas(charData, clamped, state.showOutline);
+        return;
+      }
+
       state.writer.hideCharacter();
       if (state.showOutline) state.writer.showOutline();
-
       for (let i = 0; i < clamped; i++) {
         state.writer.showStroke(i);
       }
-      updateStrokeCounterLabel(clamped, state.totalStrokes);
     }
 
     function resetCanvasState() {
-      if (!state.writer) return;
-      if (state.isQuizMode) {
+      const activeChar = state.chars[state.activeIndex];
+      const charData = state.charDataCache[activeChar];
+      clearInterval(state.animTimer);
+
+      if (state.isQuizMode && state.writer) {
         state.writer.cancelQuiz();
         state.isQuizMode = false;
         updateQuizUI();
@@ -1420,14 +1473,25 @@
       state.isPlaying = false;
       updatePlayPauseUI();
       state.showOutline = true;
-      state.writer.showOutline();
-      state.writer.showCharacter();
       state.currentStrokeStep = state.totalStrokes;
       updateStrokeCounterLabel(state.totalStrokes, state.totalStrokes);
+
+      if (state.usingFallbackRenderer && charData) {
+        renderPureSVGFallbackCanvas(charData, state.totalStrokes, true);
+        return;
+      }
+
+      if (state.writer) {
+        state.writer.showOutline();
+        state.writer.showCharacter();
+      }
     }
 
     function toggleHandwritingQuiz() {
-      if (!state.writer) return;
+      if (state.usingFallbackRenderer || !state.writer) {
+        showToast("離線繪圖模式下請先點擊「筆順演示」觀看逐筆動畫", "ℹ️");
+        return;
+      }
 
       if (state.isQuizMode) {
         resetCanvasState();
@@ -1554,7 +1618,7 @@
      * ============================================================================
      */
     async function renderWorksheetHTML(mode = "ws1", multiMode = false) {
-      const container = document.getElementById("printable-a4-container");
+      const container = document.getElementById("print-area");
       const activeChar = state.chars[state.activeIndex];
       const charData = await fetchTraditionalCharData(activeChar);
       const lex = await resolveLexicalEntry(activeChar, charData.strokes.length);
@@ -1580,7 +1644,6 @@
         }
 
         // 24 Nine-Palace Grids: 4 rows x 6 columns
-        // Row 1: 6 dark red tracing; Row 2: 6 light grey tracing; Rows 3-4: 12 blank grids
         let grid24Html = "";
         for (let row = 0; row < 4; row++) {
           const variant = row === 0 ? "dark-red" : (row === 1 ? "light-grey" : "blank");
@@ -1613,7 +1676,7 @@
             <div style="border-bottom: 2px solid #c83e37; padding-bottom: 2.5mm; display: flex; justify-content: space-between; align-items: flex-end;">
               <div>
                 <div style="font-size: 15pt; font-weight: 800; color: #c83e37; letter-spacing: 0.5px;">香港小學學習字詞表 — 繁體中文筆順教學工作紙</div>
-                <div style="font-size: 8.5pt; color: #57534e; margin-top: 1px;">工作紙 1：標準教學工作紙（二十四格九宮格・適合 4–12 歲學童）</div>
+                <div style="font-size: 8.5pt; color: #57534e; margin-top: 1px;">工作紙 1：標準教學工作紙（24格九宮格・適合 4–12 歲學童）</div>
               </div>
               <div style="font-size: 9.5pt; font-weight: 600; color: #1c1917; display: flex; gap: 5mm;">
                 <span>姓名：______________</span>
@@ -1622,7 +1685,7 @@
               </div>
             </div>
 
-            <!-- Visual Arrow Stroke Diagram + Radical/Jyutping/English Badge & Step-by-Step Mini Boxes -->
+            <!-- Visual Arrow Stroke Diagram + Radical/Jyutping/English & Step Mini Grids -->
             <div style="display: flex; gap: 4mm; align-items: stretch; border: 1.5px solid #e7e5e4; border-radius: 6px; padding: 3mm; background: #fffcfb;">
               <div style="width: 34mm; height: 34mm; border: 1.5px solid #c83e37; border-radius: 6px; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                 ${arrowDiagram}
@@ -1717,8 +1780,6 @@
         // 24 Large Nine-Palace Grids (6 rows x 4 columns)
         let grid24LargeHtml = "";
         if (!isMulti) {
-          // Single-character repetition:
-          // Row 1 = 4 dark red tracing; Rows 2-3 = 8 light grey tracing; Rows 4-6 = 12 blank nine-palace grids
           const d = dataMap[activeChar];
           for (let row = 0; row < 6; row++) {
             const variant = row === 0 ? "dark-red" : (row <= 2 ? "light-grey" : "blank");
@@ -1731,7 +1792,6 @@
             }
           }
         } else {
-          // Multi-character proportional distribution across 6 rows x 4 columns = 24 grids
           const n = targetChars.length;
           const rowsPerChar = Math.max(1, Math.floor(6 / n));
           let assignedRows = 0;
@@ -1759,7 +1819,7 @@
             <!-- Compact Name/Date Header + Visual Arrow Stroke Reference Box -->
             <div style="border-bottom: 2px solid #c83e37; padding-bottom: 2mm; display: flex; justify-content: space-between; align-items: center; gap: 3mm;">
               <div>
-                <div style="font-size: 13.5pt; font-weight: 800; color: #c83e37;">工作紙 2：全版練字工作紙（24大九宮格）</div>
+                <div style="font-size: 13.5pt; font-weight: 800; color: #c83e37;">工作紙 2：全版練字工作紙（24格大九宮格）</div>
                 <div style="font-size: 8.5pt; font-weight: 600; color: #1c1917; margin-top: 1.5mm;">
                   姓名：____________ &nbsp; 班別：_____ &nbsp; 日期：___月___日
                 </div>
@@ -1787,7 +1847,7 @@
 
     /**
      * ============================================================================
-     * 9. WORKSHEET MODAL, STANDALONE PRINT WINDOW & CLIENT-SIDE A4 PDF GENERATOR
+     * 9. WORKSHEET MODAL, STANDALONE PRINT WINDOW & WYSIWYG 300 DPI A4 PDF EXPORT
      * ============================================================================
      */
     function adjustModalA4PreviewScale() {
@@ -1824,10 +1884,10 @@
     }
 
     function openStandalonePrintWindow() {
-      const sheetHTML = document.getElementById("printable-a4-container").innerHTML;
+      const sheetHTML = document.getElementById("print-area").innerHTML;
       const win = window.open("", "_blank", "width=900,height=1100");
       if (!win) {
-        showToast("瀏覽器封鎖了彈出視窗，請允許彈出視窗或點擊「直接列印」", "⚠️");
+        showToast("瀏覽器封鎖了彈出視窗，請允許彈出視窗或點擊「直接列印當前頁」", "⚠️");
         return;
       }
 
@@ -1874,132 +1934,58 @@
     async function downloadHighResA4PDF() {
       const btn = document.getElementById("btn-download-a4-pdf");
       const origHTML = btn.innerHTML;
-      btn.innerHTML = `<span>⏳</span><span>生成高清 A4 PDF 中...</span>`;
+      btn.innerHTML = `<span>⏳</span><span>生成 300 DPI A4 PDF 中...</span>`;
       btn.disabled = true;
 
+      const wrapper = document.getElementById("a4-preview-scale-wrapper");
+      const prevTransform = wrapper.style.transform;
+
       try {
-        const W = 1654; // 200 DPI A4 width
-        const H = 2339; // 200 DPI A4 height
-        const canvas = document.createElement("canvas");
-        canvas.width = W;
-        canvas.height = H;
-        const ctx = canvas.getContext("2d");
-
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, W, H);
-
-        const sheetEl = document.getElementById("printable-a4-container");
-        const clone = sheetEl.cloneNode(true);
-        clone.style.boxShadow = "none";
-        clone.style.margin = "0";
-
-        const svgWrapper = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 793.7 1122.5">
-            <foreignObject width="100%" height="100%">
-              <div xmlns="http://www.w3.org/1999/xhtml" style="width: 793.7px; height: 1122.5px; font-family: 'Noto Sans TC', 'Inter', sans-serif; background: #ffffff;">
-                <style>
-                  * { box-sizing: border-box; }
-                  .font-kai { font-family: "DFKai-SB", "BiauKai", "標楷體", "Kaiti TC", "STKaiti", "Noto Serif TC", serif; }
-                </style>
-                ${clone.innerHTML}
-              </div>
-            </foreignObject>
-          </svg>
-        `;
-
-        const svgBlob = new Blob([svgWrapper], { type: "image/svg+xml;charset=utf-8" });
-        const url = URL.createObjectURL(svgBlob);
-
-        const img = new Image();
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-          img.src = url;
-        });
-
-        ctx.drawImage(img, 0, 0, W, H);
-        URL.revokeObjectURL(url);
-
-        const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.94);
-        const base64Data = jpegDataUrl.split(",")[1];
-        const binaryString = atob(base64Data);
-        const imgBytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          imgBytes[i] = binaryString.charCodeAt(i);
+        if (typeof window.html2canvas === "undefined" || typeof window.jspdf === "undefined") {
+          throw new Error("PDF 匯出模組載入中，為您切換至獨立列印視窗");
         }
 
-        const pdfBlob = buildSinglePageA4PDFBlob(imgBytes, W, H);
-        const downloadUrl = URL.createObjectURL(pdfBlob);
-        const a = document.createElement("a");
-        const activeChar = state.chars[state.activeIndex];
-        const wsLabel = state.activeWorksheetMode === "ws1" ? "工作紙1_標準教學" : "工作紙2_全版九宮格";
-        a.href = downloadUrl;
-        a.download = `香港小學學習字詞表_${activeChar}_${wsLabel}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 2000);
+        // Temporarily reset scale to 1 so html2canvas captures exact 210mm x 297mm proportions
+        wrapper.style.transform = "scale(1)";
+        const targetEl = document.getElementById("print-area");
 
-        showToast("高清單頁 A4 PDF 工作紙已下載！", "📥");
+        const canvas = await window.html2canvas(targetEl, {
+          scale: 3, // ~300 DPI crisp print resolution
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false
+        });
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.96);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4"
+        });
+
+        pdf.addImage(imgData, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+
+        const activeChar = state.chars[state.activeIndex];
+        const fileName = state.activeWorksheetMode === "ws1"
+          ? `香港小學標準教學工作紙_24格_${activeChar}.pdf`
+          : `香港小學全版練字工作紙_24格_${activeChar}.pdf`;
+
+        pdf.save(fileName);
+        showToast(`已成功下載單頁 A4 PDF：${fileName}`, "📥");
       } catch (err) {
-        showToast("已為您開啟獨立列印視窗（可直接在列印對話框儲存為 PDF）", "🪟");
+        showToast("已為您開啟獨立列印視窗（可直接在列印對話框選擇「儲存為 PDF」）", "🪟");
         openStandalonePrintWindow();
       } finally {
+        wrapper.style.transform = prevTransform;
         btn.innerHTML = origHTML;
         btn.disabled = false;
       }
     }
 
-    function buildSinglePageA4PDFBlob(jpegBytes, imgWidth, imgHeight) {
-      const encoder = new TextEncoder();
-      const chunks = [];
-      const offsets = [0];
-      let byteLength = 0;
-
-      const writeStr = (str) => {
-        const bytes = encoder.encode(str);
-        chunks.push(bytes);
-        byteLength += bytes.length;
-      };
-      const writeBytes = (bytes) => {
-        chunks.push(bytes);
-        byteLength += bytes.length;
-      };
-
-      writeStr("%PDF-1.4\n");
-
-      offsets.push(byteLength);
-      writeStr("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
-
-      offsets.push(byteLength);
-      writeStr("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
-
-      offsets.push(byteLength);
-      writeStr("3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im0 4 0 R >> >> /MediaBox [0 0 595.28 841.89] /Contents 5 0 R >>\nendobj\n");
-
-      offsets.push(byteLength);
-      writeStr(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imgWidth} /Height ${imgHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`);
-      writeBytes(jpegBytes);
-      writeStr("\nendstream\nendobj\n");
-
-      const contentStream = "q 595.28 0 0 841.89 0 0 cm /Im0 Do Q";
-      offsets.push(byteLength);
-      writeStr(`5 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
-
-      const xrefOffset = byteLength;
-      writeStr(`xref\n0 ${offsets.length}\n`);
-      writeStr("0000000000 65535 f \n");
-      for (let i = 1; i < offsets.length; i++) {
-        writeStr(`${String(offsets[i]).padStart(10, "0")} 00000 n \n`);
-      }
-
-      writeStr(`trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
-      return new Blob(chunks, { type: "application/pdf" });
-    }
-
     /**
      * ============================================================================
-     * 10. SEARCH BAR, QUICK-SELECT PILLS & EVENT INITIALIZATION
+     * 10. SEARCH BAR, QUICK-SELECT PILLS & EVENT BINDINGS
      * ============================================================================
      */
     function showToast(msg, icon = "✨") {
@@ -2016,7 +2002,7 @@
       window.__toastTimer = setTimeout(() => {
         banner.classList.add("translate-y-4", "opacity-0");
         setTimeout(() => banner.classList.add("hidden"), 300);
-      }, 3200);
+      }, 3400);
     }
 
     function setSearchCharacters(rawInput) {
@@ -2077,7 +2063,6 @@
       refreshVoiceStatusIndicator();
 
       const searchInput = document.getElementById("char-search-input");
-      searchInput.value = "張";
       document.getElementById("search-submit-btn").addEventListener("click", () => {
         setSearchCharacters(searchInput.value);
       });
@@ -2089,7 +2074,7 @@
         searchInput.focus();
       });
 
-      // Grid Overlay Toggle
+      // Grid Overlay Toggles
       document.querySelectorAll(".grid-mode-btn").forEach(btn => {
         btn.addEventListener("click", () => {
           state.gridMode = btn.dataset.grid;
@@ -2116,10 +2101,16 @@
         });
       });
 
-      // Outline Toggle
+      // Outline Visibility Toggle
       document.getElementById("btn-canvas-outline-toggle").addEventListener("click", () => {
-        if (!state.writer) return;
         state.showOutline = !state.showOutline;
+        const activeChar = state.chars[state.activeIndex];
+        const charData = state.charDataCache[activeChar];
+        if (state.usingFallbackRenderer && charData) {
+          renderPureSVGFallbackCanvas(charData, state.currentStrokeStep, state.showOutline);
+          return;
+        }
+        if (!state.writer) return;
         if (state.showOutline) state.writer.showOutline();
         else state.writer.hideOutline();
       });
@@ -2136,7 +2127,7 @@
         state.writer.highlightStroke(state.currentStrokeStep);
       });
 
-      // Audio Pronunciation Buttons
+      // Cantonese & Mandarin Pronunciation Buttons
       document.getElementById("speak-cantonese-btn").addEventListener("click", () => {
         speakText(state.chars[state.activeIndex], "zh-HK");
       });
@@ -2150,7 +2141,7 @@
         speakText(document.getElementById("meta-sentence").textContent, "zh-TW");
       });
 
-      // Worksheet Modal Triggers
+      // Dual-Mode A4 Worksheet Modal Triggers
       document.getElementById("open-ws1-btn").addEventListener("click", () => openWorksheetModal("ws1", false));
       document.getElementById("open-ws2-btn").addEventListener("click", () => openWorksheetModal("ws2", false));
       document.getElementById("open-ws2-multi-btn").addEventListener("click", () => openWorksheetModal("ws2", true));
@@ -2161,14 +2152,14 @@
         document.getElementById("worksheet-modal").classList.add("hidden");
       });
 
-      // Print & PDF Download Outputs
-      document.getElementById("btn-standalone-print-win").addEventListener("click", openStandalonePrintWindow);
+      // Export Actions
       document.getElementById("btn-download-a4-pdf").addEventListener("click", downloadHighResA4PDF);
+      document.getElementById("btn-standalone-print-win").addEventListener("click", openStandalonePrintWindow);
       document.getElementById("btn-direct-window-print").addEventListener("click", () => window.print());
 
       window.addEventListener("resize", adjustModalA4PreviewScale);
 
-      // Load default character "張"
+      // Load Default Character "張"
       loadCharacterIntoWorkspace("張");
     });
   </script>
